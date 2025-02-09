@@ -1,5 +1,7 @@
 sample/
 *.csv
+dgraph/DGraphFin
+dgraph/NearbyNet
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
