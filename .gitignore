@@ -1,9 +1,9 @@
-sample/
 *.csv
 dgraph/DGraphFin
 dgraph/NearbyNet
 *.DS_STORE
 *.pdf
+datasets/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
