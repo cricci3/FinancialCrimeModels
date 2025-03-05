@@ -15,3 +15,8 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 [2] D. Pasadakis, M. Bollhöfer, and O. Schenk, “Sparse quadratic approximation for graph learning,” IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 45, no. 9, pp. 11256-11269, 1 Sept. 2023, doi: 10.1109/TPAMI.2023.3263969
 
 [3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
+
+**Sources**
+- AMLSim 100-1K-10K-100K-1M users [datasets](!https://github.com/IBM/AMLSim/wiki/Download-Example-Data-Set)
+
+- [AMLSim 10k users on kaggle](!https://www.kaggle.com/datasets/anshankul/ibm-amlsim-example-dataset)
