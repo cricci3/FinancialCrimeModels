@@ -9,13 +9,14 @@ def squic_matlab(Y, lambda_val, eta):
     # Construct initial Lambda matrix (zero sparse matrix)
     Lambda_matrix = sp.csr_matrix((p, p))
 
-    W0 = Lambda_matrix
-    X0 = Lambda_matrix
+    # cant pass those params cause jupyter crash
+    # W0 = Lambda_matrix
+    # X0 = Lambda_matrix
     
     print('Squic Run 1: Estimate graphical bias of negatively correlated variables')
     
     # First SQUIC call
-    X1, _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda_matrix, X0=X0, W0=W0)
+    X1, _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda_matrix)
     
     # Remove diagonal entries and select structure of negative off-diagonal entries
     G_neg = X1.todense() - np.diag(np.diag(X1.todense()))
@@ -27,7 +28,7 @@ def squic_matlab(Y, lambda_val, eta):
     Lambda_matrix = sp.csr_matrix(eta * G_neg)
     
     # Second SQUIC call
-    X2,  _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda_matrix, X0=X0, W0=W0)
+    X2,  _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda_matrix)
     
     # Remove diagonal entries
     W = X2.todense() - np.diag(np.diag(X2.todense()))
