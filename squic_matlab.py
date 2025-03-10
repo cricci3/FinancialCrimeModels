@@ -9,7 +9,6 @@ def squic_matlab(Y, lambda_val, eta):
     # Construct initial Lambda matrix (zero sparse matrix)
     Lambda_matrix = sp.csr_matrix((p, p))
 
-    # cant pass those params cause jupyter crash
     # W0 = Lambda_matrix
     # X0 = Lambda_matrix
     
