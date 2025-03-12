@@ -47,5 +47,3 @@ with 100 users
 | **NNZ/Row**         | 14.82 | 23.06 | 41.7 | 48.26 | 48.72 |
 | **Time (s)**        | 1.89  | 18.26 | 47.39 | 47.46 | 47.44 |
 
-This format improves readability for README files and ensures compatibility with GitHub's Markdown rendering.
-
