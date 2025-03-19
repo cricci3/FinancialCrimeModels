@@ -5,6 +5,7 @@ dgraph/NearbyNet
 *.pdf
 datasets/
 images/
+graphs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
