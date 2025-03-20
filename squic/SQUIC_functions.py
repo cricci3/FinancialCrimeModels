@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import squic
 import scipy as sp
 import numpy as np
+import time
+from scipy.sparse import csr_matrix
 
 
 def compute_squic(Y, l):
@@ -9,51 +11,83 @@ def compute_squic(Y, l):
 
     time = times[0]
 
-    print(X.todense())
+    # print(X.todense())
     return X, time
 
 def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
-    # # First squic call -> Identify negative off-diagonal elements (Equation 9)
-    X1, _, _, _, _, _ = squic.run(Y, lambda_val)
-    Theta1 = X1.todense()
+    start_time = time.time()
+    # First squic call -> Identify negative off-diagonal elements (Equation 9)
+    X1 = squic.run(Y, lambda_val)
+    X1 = X1.todense()
     
     # Step 2: Build Graphical Bias G (Equation 10)
-    G = np.zeros_like(Theta1)
-    G[np.triu_indices_from(G, k=1)] = (Theta1[np.triu_indices_from(Theta1, k=1)] < -kappa).astype(int)
+    G = np.zeros_like(X1)
+    G[np.triu_indices_from(G, k=1)] = (X1[np.triu_indices_from(X1, k=1)] < -kappa).astype(int)
     G += G.T  # Make symmetric
     
     # Step 3: Build Regularization Parameter Matrix Λ (Equation 12)
     #Lambda = np.full_like(Theta1, lambda_val) 
-    Lambda = np.zeros_like(Theta1)
+    Lambda = np.zeros_like(X1)
     # Apply eta where G is nonzero
     Lambda[G != 0] = eta
     
     # Step 4: Second SQUIC estimation with bias (Equation 11)
     X2, _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda)
-    Theta2 = X2.todense()
+    X2 = X2.todense()
     
     # Step 5: Construct the final M-matrix (Equation 13)
-    Theta_final = np.zeros_like(Theta2)
+    X_final = np.zeros_like(X2)
     
     # Get diagonal
-    diag = np.diag(Theta2)
+    diag = np.diag(X2)
     
     # Identify negative off-diagonal elements
-    n = Theta2.shape[0]
+    n = X2.shape[0]
     for i in range(n):
         for j in range(i+1, n):
-            if Theta2[i, j] < -tau:
-                Theta_final[i, j] = Theta2[i, j]
-                Theta_final[j, i] = Theta2[j, i]
+            if X2[i, j] < -tau:
+                X_final[i, j] = X2[i, j]
+                X_final[j, i] = X2[j, i]
     
     # Restore diagonal
-    np.fill_diagonal(Theta_final, diag)
+    np.fill_diagonal(X_final, diag)
+    end_time = time.time() - start_time
+    end_time = round(end_time, 2)
     
-    return Theta_final
+    return X_final, end_time
+
+def squic_fit_matrix2(Y, l, matrix, tau=0):
+    start_time = time.time()
+
+    M_sparse = csr_matrix(matrix)
+
+    # Step 4: Second SQUIC estimation with bias (Equation 11)
+    X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
+    Theta2 = X2.todense()
+
+    # Step 5: Construct the final M-matrix
+    Theta_final = np.copy(Theta2)
+
+    # Mask out values where Theta2 < -tau
+    mask = (Theta2 > -tau) & np.triu(np.ones_like(Theta2), k=1).astype(bool)
+    Theta_final[mask] = 0
+
+    # Restore diagonal
+    np.fill_diagonal(Theta_final, np.diag(Theta2))
+
+    end_time = round(time.time() - start_time, 2)
+    
+    return Theta_final, end_time
     
 def count_nnz(X, rows):
     # Count nonzero elements in X
     nnz = X.nnz
+    nnz_r = nnz / rows
+    return nnz, nnz_r
+
+def nnz_fit(X, rows):
+    A = sp.sparse.csr_array(X)
+    nnz = A.count_nonzero()
     nnz_r = nnz / rows
     return nnz, nnz_r
 
@@ -71,9 +105,4 @@ def sparsity_pattern(X):
     plt.tick_params(axis='y', labelsize=18)  
     # plt.title("Sparsity Pattern of Precision Matrix (X)")
     plt.show()
-
-def nnz_fit(theta, rows):
-    A = sp.sparse.csr_array(theta)
-    nnz = A.count_nonzero()
-    nnz_r = nnz / rows
-    return nnz, nnz_r
+    
