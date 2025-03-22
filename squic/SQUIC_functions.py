@@ -56,6 +56,36 @@ def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
     
     return X_final, end_time
 
+def squic_fit_matrix(Y, l, matrix, tau=0):
+    start_time = time.time()
+
+    M_sparse = csr_matrix(matrix)
+
+    # Step 4: Second SQUIC estimation with bias (Equation 11)
+    X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
+    X2 = X2.todense()
+    
+    # Step 5: Construct the final M-matrix (Equation 13)
+    X_final = np.zeros_like(X2)
+    
+    # Get diagonal
+    diag = np.diag(X2)
+    
+    # Identify negative off-diagonal elements
+    n = X2.shape[0]
+    for i in range(n):
+        for j in range(i+1, n):
+            if X2[i, j] < -tau:
+                X_final[i, j] = X2[i, j]
+                X_final[j, i] = X2[j, i]
+    
+    # Restore diagonal
+    np.fill_diagonal(X_final, diag)
+    
+    end_time = round(time.time() - start_time, 2)
+    
+    return X_final, end_time
+
 def squic_fit_matrix2(Y, l, matrix, tau=0):
     start_time = time.time()
 
@@ -91,7 +121,7 @@ def nnz_fit(X, rows):
     nnz_r = nnz / rows
     return nnz, nnz_r
 
-def sparsity_pattern(X):
+def sparsity_pattern(X, save=False, path=None):
     #plt.figure(figsize=(10, 10), dpi=300)
     plt.figure(figsize=(7, 7))
     # plt.spy(X, markersize=5, c="#484154")
@@ -104,5 +134,8 @@ def sparsity_pattern(X):
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18)  
     # plt.title("Sparsity Pattern of Precision Matrix (X)")
-    plt.show()
+
+    if save:
+        plt.savefig(path)
     
+    plt.show()
