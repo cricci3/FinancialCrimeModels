@@ -2,7 +2,6 @@
 dgraph/DGraphFin
 dgraph/NearbyNet
 *.DS_STORE
-*.pdf
 datasets/
 images/
 graphs/
