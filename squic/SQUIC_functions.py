@@ -7,6 +7,13 @@ from scipy.sparse import csr_matrix
 
 
 def compute_squic(Y, l):
+    '''
+    Function to compute SQUIC
+
+    Return:
+    - X: adjacency matrix
+    - time: computation time
+    '''
     [X,_,times,_,_,_] = squic.run(Y,l)
 
     time = times[0]
@@ -14,7 +21,15 @@ def compute_squic(Y, l):
     # print(X.todense())
     return X, time
 
+
 def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
+    '''
+    Function to compute SQUIC-Fit
+
+    Return:
+    - X_final: adjacency matrix
+    - end_time: computation time
+    '''
     start_time = time.time()
     # First squic call -> Identify negative off-diagonal elements (Equation 9)
     X1 = squic.run(Y, lambda_val)
@@ -56,7 +71,15 @@ def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
     
     return X_final, end_time
 
+
 def squic_fit_matrix(Y, l, matrix, tau=0):
+    '''
+    Function to pass a matrix as bias to SQUIC
+
+    Return:
+    - X_final: adjacency matrix
+    - end_time: computation time
+    '''
     start_time = time.time()
 
     M_sparse = csr_matrix(matrix)
@@ -110,18 +133,34 @@ def squic_fit_matrix2(Y, l, matrix, tau=0):
     return Theta_final, end_time
     
 def count_nnz(X, rows):
-    # Count nonzero elements in X
+    '''
+    Function to count nnz on a matrix
+    
+    Returns:
+    - nnz: number of non-zero elements
+    - nnz_r: number of non-zero elements per row
+    '''
     nnz = X.nnz
     nnz_r = nnz / rows
     return nnz, nnz_r
 
 def nnz_fit(X, rows):
+    '''
+    Function to count nnz on a matrix
+    
+    Returns:
+    - nnz: number of non-zero elements
+    - nnz_r: number of non-zero elements per row
+    '''
     A = sp.sparse.csr_array(X)
     nnz = A.count_nonzero()
     nnz_r = nnz / rows
     return nnz, nnz_r
 
 def sparsity_pattern(X, save=False, path=None):
+    '''
+    Function to print adjaceny matrix
+    '''
     #plt.figure(figsize=(10, 10), dpi=300)
     plt.figure(figsize=(7, 7))
     # plt.spy(X, markersize=5, c="#484154")
