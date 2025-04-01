@@ -19,9 +19,9 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 [3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
 
 ## Sources
-- AMLSim 100-1K-10K-100K-1M users www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set
+- [AMLSim 100-1K-10K-100K-1M users](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set)
 
-- AMLSim 10k users on kaggle www.kaggle.com/datasets/anshankul/ibm-amlsim-example-dataset
+- [AMLSim 10k users on kaggle](www.kaggle.com/datasets/anshankul/ibm-amlsim-example-dataset)
 
 ## Results
 with 100 users
