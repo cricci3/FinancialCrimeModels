@@ -1,0 +1,11 @@
+## Related Papers
+
+- [GAMLNet: a graph based framework for the detection of money laundering](https://www.researchgate.net/publication/384121421_GAMLNet_a_graph_based_framework_for_the_detection_of_money_laundering), Julien Schmidt, Dimosthenis Pasadakis, Madan Sathe & Olaf Schenk
+
+- [SQUIC: Sparse Quadratic Approximation for Graph Learning](https://ieeexplore.ieee.org/document/10091452), Dimosthenis Pasadakis, Matthias Bollhöfer, Olaf Schenk
+
+- [BankSim: A Bank Payment Simulation for Fraud Detection Research](https://www.researchgate.net/publication/265736405_BankSim_A_Bank_Payment_Simulation_for_Fraud_Detection_Research), Edgar Alonso Lopez-Rojas, Stefan Axelsson
+
+- [PaySim: A Financial Mobile Money Simulator for Fraud Detection](https://www.researchgate.net/publication/313138956_PAYSIM_A_FINANCIAL_MOBILE_MONEY_SIMULATOR_FOR_FRAUD_DETECTION), Edgar Alonso Lopez-Rojas, Stefan Axelsson
+
+- AMLSim [Scalable Graph Learning for Anti-Money Laundering: A First Look](https://arxiv.org/abs/1812.00076), Mark Weber, Jie Chen, Toyotaro Suzumura, Aldo Pareja, Tengfei Ma, Hiroki Kanezashi, Tim Kaler, Charles E. Leiserson, Tao B. Schardl
