@@ -18,32 +18,18 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 
 [3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
 
-## Sources
-- [AMLSim 100-1K-10K-100K-1M users](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set)
+## Data Sources
+- AMLSim datasets with [100-1K-10K-100K-1M](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users
 
-- [AMLSim 10k users on kaggle](www.kaggle.com/datasets/anshankul/ibm-amlsim-example-dataset)
+    Anomaly %
+    - 100 = 0.1% (18 out of 17144 transactions)
+    - 1K = 0.15% (175 out of 117533 transactions)
+    - 10K = 0.13% (1719 out of 1323234 transactions)
+    - 100K = 0.14% (17052 out of 12476012 transactions)
+    - 1M = 0.13% (162937 out of 124703184 transactions)
 
-## Results
-with 100 users
+- Data generated from [PaySim](https://github.com/EdgarLopezPhD/PaySim) tool
 
-### SQUIC Results
-| Parameter  | 0.1 | 0.01 | 0.001 | 0.0001 | 1e-05 |
-|-------------|-----|-------|--------|---------|--------|
-| **NNZ**      | 10000 | 10000 | 10000 | 10000 | 10000 |
-| **NNZ/Row**  | 100   | 100   | 100   | 100    | 100   |
-| **Time (s)** | 0.98  | 0.92  | 0.96  | 0.95   | 0.94  |
+- [Libra Bank transaction graph](https://graphomaly.upb.ro/index.htm#datasets) over 3 months
 
-### SQUIC FIT Results
-| Parameter  | 0.1 | 0.01 | 0.001 | 0.0001 | 1e-05 |
-|-------------|-----|-------|--------|---------|--------|
-| **NNZ**      | 4992 | 4992 | 4992 | 4992 | 4992 |
-| **NNZ/Row**  | 49.92 | 49.92 | 49.92 | 49.92 | 49.92 |
-| **Time (s)** | 1.91  | 1.87  | 1.85  | 1.89   | 1.85  |
-
-### SQUIC FIT NORM Results
-| Parameter  | 0.1 | 0.01 | 0.001 | 0.0001 | 1e-05 |
-|-------------------|-----|-------|--------|---------|--------|
-| **NNZ**             | 1482 | 2306 | 4170 | 4826 | 4872 |
-| **NNZ/Row**         | 14.82 | 23.06 | 41.7 | 48.26 | 48.72 |
-| **Time (s)**        | 1.89  | 18.26 | 47.39 | 47.46 | 47.44 |
 
