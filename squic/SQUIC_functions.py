@@ -32,7 +32,7 @@ def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
     '''
     start_time = time.time()
     # First squic call -> Identify negative off-diagonal elements (Equation 9)
-    X1 = squic.run(Y, lambda_val)
+    X1, _, _, _, _, _  = squic.run(Y, lambda_val)
     X1 = X1.todense()
     
     # Step 2: Build Graphical Bias G (Equation 10)
