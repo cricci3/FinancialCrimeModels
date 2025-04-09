@@ -29,6 +29,7 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
     - 1M = 0.13% (162937 out of 124703184 transactions)
 
 - Data generated from [PaySim](https://github.com/EdgarLopezPhD/PaySim) tool
+  The generated datasets can be downloaded from [here](https://drive.google.com/drive/folders/1Ebt9SNsPrbM4rMkJGrZHw66EmvjVtIph?usp=sharing, https://drive.google.com/drive/folders/1JRdPMLmCf8zXLP5shaKSwXWU7p7pHS7C?usp=sharing, https://drive.google.com/drive/folders/1T2ug-ZyBd-b1gBgvAy91GGIy6gt4aX9y?usp=sharing, https://drive.google.com/drive/folders/1uLpdq0sP96s6CfyHPLdWHQcOk2tO-ZfU?usp=sharing, https://drive.google.com/drive/folders/1yRSB-d2KnTcx5ElEmUYQ2_QwHj5_2Z1Q?usp=sharing)
 
 - [Libra Bank transaction graph](https://graphomaly.upb.ro/index.htm#datasets) over 3 months
 
