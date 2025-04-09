@@ -19,7 +19,7 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 [3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
 
 ## Data Sources
-- AMLSim datasets with [100-1K-10K-100K-1M](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users
+- AMLSim datasets with [100-1K-10K-100K-1M](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users can be downloaded from [here](https://www.dropbox.com/scl/fo/7g35w7wk7gglve627we3k/AHjP6pnCmV8M62L7RxTFtkU?rlkey=6ksx339ac9117onfx3l0g3fji&e=1&dl=0)
 
     Anomaly %
     - 100 = 0.1% (18 out of 17144 transactions)
@@ -28,9 +28,7 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
     - 100K = 0.14% (17052 out of 12476012 transactions)
     - 1M = 0.13% (162937 out of 124703184 transactions)
 
-- Data generated from [PaySim](https://github.com/EdgarLopezPhD/PaySim) tool
-  The generated datasets can be downloaded from [here](https://drive.google.com/drive/folders/1Ebt9SNsPrbM4rMkJGrZHw66EmvjVtIph?usp=sharing, https://drive.google.com/drive/folders/1JRdPMLmCf8zXLP5shaKSwXWU7p7pHS7C?usp=sharing, https://drive.google.com/drive/folders/1T2ug-ZyBd-b1gBgvAy91GGIy6gt4aX9y?usp=sharing, https://drive.google.com/drive/folders/1uLpdq0sP96s6CfyHPLdWHQcOk2tO-ZfU?usp=sharing, https://drive.google.com/drive/folders/1yRSB-d2KnTcx5ElEmUYQ2_QwHj5_2Z1Q?usp=sharing)
+- Data generated with [PaySim tool](https://github.com/EdgarLopezPhD/PaySim) can be downloaded from [here](https://drive.google.com/drive/folders/1Alv9liWAcDfOHLTj3aKzQsdb8YFn1Fze?usp=drive_link)
 
 - [Libra Bank transaction graph](https://graphomaly.upb.ro/index.htm#datasets) over 3 months
-
 
