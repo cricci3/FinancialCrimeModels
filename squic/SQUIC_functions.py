@@ -157,6 +157,11 @@ def nnz_fit(X, rows):
     nnz_r = nnz / rows
     return nnz, nnz_r
 
+def is_symmetric(X):
+    if sp.sparse.issparse(X):
+        X = X.toarray()
+    return np.allclose(X, X.T)
+
 def sparsity_pattern(X, save=False, path=None):
     '''
     Function to print adjaceny matrix
