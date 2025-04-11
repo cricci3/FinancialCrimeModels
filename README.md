@@ -19,7 +19,7 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 [3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
 
 ## Data Sources
-- AMLSim datasets with [100-1K-10K-100K-1M](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users can be downloaded from [here](https://www.dropbox.com/scl/fo/7g35w7wk7gglve627we3k/AHjP6pnCmV8M62L7RxTFtkU?rlkey=6ksx339ac9117onfx3l0g3fji&e=1&dl=0)
+- [AMLSim](https://github.com/IBM/AMLSim) datasets with [100-1K-10K-100K-1M](www.github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users can be downloaded from [here](https://www.dropbox.com/scl/fo/7g35w7wk7gglve627we3k/AHjP6pnCmV8M62L7RxTFtkU?rlkey=6ksx339ac9117onfx3l0g3fji&e=1&dl=0)
 
     Anomaly %
     - 100 = 0.1% (18 out of 17144 transactions)
@@ -29,6 +29,13 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
     - 1M = 0.13% (162937 out of 124703184 transactions)
 
 - Data generated with [PaySim tool](https://github.com/EdgarLopezPhD/PaySim) can be downloaded from [here](https://drive.google.com/drive/folders/1Alv9liWAcDfOHLTj3aKzQsdb8YFn1Fze?usp=drive_link)
+
+   Anomaly %
+    - 100 = 0.14% (18 out of 12492 transactions)
+    - 1K = 0.12% (128 out of 103884 transactions)
+    - 10K = 0.13% (1444 out of 1100726 transactions)
+    - 100K = 0.13% (14376 out of 10900690 transactions)
+    - 1M = 0.13% (143548 out of 111526310 transactions)
 
 - [Libra Bank transaction graph](https://graphomaly.upb.ro/index.htm#datasets) over 3 months
 
