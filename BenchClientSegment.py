@@ -2,32 +2,52 @@ from preprocessing.preprocess import *
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-from squic.SQUIC_functions import *
+from squic_folder.SQUIC_functions import *
+import networkx as nx
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import SpectralClustering
+
+
+def parse_input(user_input):
+    """Parse and validate the dataset input in the format NAME_DIMENSION."""
+    try:
+        name, dimension = user_input.strip().upper().split("_")
+    except ValueError:
+        raise ValueError("Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K)")
+
+    valid_names = {"AMLSIM", "PAYSIM", "LIBRE"}
+    valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
+
+    if name not in valid_names:
+        raise ValueError(f"Invalid dataset name '{name}'. Valid options are: {', '.join(valid_names)}")
+    if dimension not in valid_dimensions:
+        raise ValueError(f"Invalid dimension '{dimension}'. Valid options are: {', '.join(valid_dimensions)}")
+
+    return name, dimension
 
 
 def load_dataset():
-    dataset = input("Insert dataset name in the following format NAME_DIMENSION : ")
+    """Prompt user input and load the corresponding dataset."""
+    while True:
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
 
-    dataset = dataset.split("_")
+        try:
+            name, dimension = parse_input(user_input)
+            break
+        except ValueError as e:
+            print(f"Error: {e}")
+            continue
 
-    name = dataset[0]
-    dimension = dataset[1]
-
-    name = name.upper()
-
-    valid_dimensions = ["100", "1K", "10K", "100K", "1M"]
-
-    if dimension in valid_dimensions:
-        if name == 'AMLSIM':
-            df = AMLSim_preprocessing(dimension)
-        elif name == 'PAYSIM':
-            df = PaySim_preprocessing(dimension)
-        elif name == 'LIBRE':
-            pass
-        else:
-            print("Invalid dataset name")
+    if name == 'AMLSIM':
+        df = AMLSim_preprocessing(dimension)
+    elif name == 'PAYSIM':
+        df = PaySim_preprocessing(dimension)
+    elif name == 'LIBRE':
+        # future implementation
+        df = None
+        print("LIBRE dataset support not yet implemented.")
     else:
-        print("Invalid dataset dimension")
+        df = None
 
     return df, name, dimension
 
@@ -69,7 +89,7 @@ def normalization(df, name):
     return Y_new
 
 
-def compute_squic(Y_norm, name, dimension):
+def squic_computation(Y_norm, name, dimension, printMatrix=False):
     with open('lambda_values.json') as f:
             lambda_data = json.load(f)
         
@@ -84,50 +104,119 @@ def compute_squic(Y_norm, name, dimension):
     data_time = []
     data_sym = []
 
-    if name == 'AMLSIM':
-        for rho in lambdas:
-            fit_norm_dict[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
-            end_time = round(end_time, 2)
-            print(f"required time: {end_time}")
+    for rho in lambdas:
+        fit_norm_dict[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
+        end_time = round(end_time, 2)
+        print(f"required time: {end_time}")
 
-            nnz, nnz_r = nnz_fit(fit_norm_dict[rho], ROWS)
-            print(f"nnz = {nnz} per rows = {nnz_r}")
+        nnz, nnz_r = nnz_fit(fit_norm_dict[rho], ROWS)
+        print(f"nnz = {nnz} per rows = {nnz_r}")
 
+        if printMatrix:
             sparsity_pattern(fit_norm_dict[rho])
 
-            if is_symmetric(fit_norm_dict[rho]):
-                print(f"✅ Matrix is symmetric per rho {rho}")
-                data_sym.append("Yes")
-            else:
-                print(f"❌ Matrix is not symmetric per rho {rho}")
-                data_sym.append("No")
+        if is_symmetric(fit_norm_dict[rho]):
+            print(f"✅ Matrix is symmetric per rho {rho}")
+            data_sym.append("Yes")
+        else:
+            print(f"❌ Matrix is not symmetric per rho {rho}")
+            data_sym.append("No")
 
-            data_nnz.append(nnz)
-            data_nnzr.append(nnz_r)
-            data_time.append(end_time)
+        data_nnz.append(nnz)
+        data_nnzr.append(nnz_r)
+        data_time.append(end_time)
 
-        table_fit_norm = [
+    table_fit_norm = [
             ["NNZ"] + data_nnz,
             ["NNZ/Row"] + data_nnzr,
             ["Time (s)"] + data_time,
             ["Symmetric"] + data_sym
-        ]
+    ]
 
-    elif name == 'PAYSIM':
-        pass
-    else:
-        # libra
-        pass
-
-    return fit_norm_dict, table_fit_norm
+    return fit_norm_dict, table_fit_norm, lambdas
 
 
+def clustering(dict_results, lambdas):
+    dict_labels = {}
 
-def clustering(X):
-    pass
+    for rho in lambdas:
+        X = dict_results[rho]
 
-def internal_metrics(X):
-    pass
+        # Ensure all off-diagonal entries are positive
+        X = np.abs(X) 
+
+        # Ensure diagonal entries are zero
+        np.fill_diagonal(X, 0)
+
+        # Create a graph from matrix X
+        G = nx.from_numpy_array(X)
+
+        # Define a range of number of cluster
+        cluster_range = range(2, 11)
+        sil_scores = []
+        cluster_labels = {}
+
+        for n in cluster_range:
+            # Perform SpectralClustering
+            clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
+            labels = clustering.fit_predict(np.asarray(X))
+            # labels = clustering.fit_predict(G)
+
+            
+            # Compute the Silhouette Score
+            score = silhouette_score(np.asarray(X), labels, metric='precomputed')
+            # score = silhouette_score(G, labels, metric='precomputed')
+            sil_scores.append(score)
+            cluster_labels[n] = labels
+
+        # Plot Silhouette Score for each number of clusters
+        plt.plot(cluster_range, sil_scores, marker='o')
+        plt.xlabel('Number of clusters')
+        plt.ylabel('Silhouette Score')
+        plt.title('Silhouette Score Method')
+        plt.show()
+
+        # Automatically choose the best number of clusters
+        best_n_clusters = cluster_range[np.argmax(sil_scores)]
+        labels = cluster_labels[best_n_clusters]
+
+        print(f"Best number of clusters for rho={rho}: {best_n_clusters}")
+
+        dict_labels[rho] = labels
+    
+    return dict_labels
+    
+
+def internal_metrics(dict_labels, adjaceny_matrices, lambdas):
+    for rho in lambdas:
+        labels = dict_labels[rho]
+
+        # Normalized Cut and Ratio Cut
+        X = adjaceny_matrices[rho]
+        n_cut = 0
+
+        unique_labels = np.unique(labels)
+        r_cut = 0
+        
+        for cluster in unique_labels:
+            mask = (labels == cluster)
+            not_mask = ~mask
+            cut = X[mask][:, not_mask].sum()
+            vol = X[mask].sum()
+            assoc = X[mask][:, mask].sum()
+            
+            n_cut += cut / (vol + 1e-10)  # Avoid division by zero
+            r_cut += cut
+        
+        print(n_cut)
+        print(r_cut / len(unique_labels))
+        
+        # Ratio Cut
+        
+        # Modularity
+        
+        # Strongly Connected Components
+    
 
 def create_graph(X):
     pass
@@ -141,14 +230,16 @@ if __name__ == '__main__':
     extract_timeseries(df)
 
     # Normalise time series
-    Y_norm = normalization(df)
+    Y_norm = normalization(df, name)
 
     # Run SQUIC_fit
-    squic_results, table_results = compute_squic(Y_norm, name, dimension)
+    adjaceny_matrices, table_results, lambdas = squic_computation(Y_norm, name, dimension)
     
-    # # Use the extracted W (check if symmetric) for clustering
-    # clustering()
+    # Use the extracted W for clustering
+    dict_labels = clustering(adjaceny_matrices, lambdas)
 
-    # # Report internal metrics on the clustering, and visualise with cosmograph
-    # internal_metrics()
+    # Report internal metrics on the clustering
+    internal_metrics(dict_labels, adjaceny_matrices, lambdas)
+
+    # Visualise with cosmograph
     # create_graph()
