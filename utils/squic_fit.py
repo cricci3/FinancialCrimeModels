@@ -1,5 +1,5 @@
 import numpy as np
-import squic
+import squic_folder
 
 
 def squic_fit(Y, l, eta, kappa, tau):

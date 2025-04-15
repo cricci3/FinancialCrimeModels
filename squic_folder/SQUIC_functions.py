@@ -18,7 +18,6 @@ def compute_squic(Y, l):
 
     time = times[0]
 
-    # print(X.todense())
     return X, time
 
 
@@ -142,7 +141,7 @@ def count_nnz(X, rows):
     '''
     nnz = X.nnz
     nnz_r = nnz / rows
-    return nnz, nnz_r
+    return nnz, round(nnz_r, 2)
 
 def nnz_fit(X, rows):
     '''
@@ -155,7 +154,7 @@ def nnz_fit(X, rows):
     A = sp.sparse.csr_array(X)
     nnz = A.count_nonzero()
     nnz_r = nnz / rows
-    return nnz, nnz_r
+    return nnz, round(nnz_r, 2)
 
 def is_symmetric(X):
     if sp.sparse.issparse(X):
