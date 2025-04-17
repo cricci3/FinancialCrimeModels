@@ -39,3 +39,55 @@ This thesis aims to advance customer segmentation methodologies by leveraging in
 
 - [Libra Bank transaction graph](https://graphomaly.upb.ro/index.htm#datasets) over 3 months
 
+## How to Run
+
+1. **Download the Dataset**  
+   Use the provided link to download the datasets.
+
+2. **Setup the Folder Structure**  
+   In the root directory of the project, create a folder named `Datasets` with the following structure:
+
+    ```
+    FinancialCrimeModels
+    |_ BenchClientSegment.py
+    |_ BenchClientSegment_labels.py
+    |_ Datasets
+        |_ AMLSim
+            |_ 100 (with inside the csv files)
+            |_ 1K (with inside the csv files)
+            |_ 10K (with inside the csv files)
+            |_ 100K (with inside the csv files)
+            |_ 1M (with inside the csv files)
+        |_ PaySim
+            |_ 100 (with inside the csv files)
+            |_ 1K (with inside the csv files)
+            |_ 10K (with inside the csv files)
+            |_ 100K (with inside the csv files)
+            |_ 1M (with inside the csv files)
+    ```
+
+    Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
+
+3. **Run the Program**  
+    Execute either `BenchClientSegment.py` or `BenchClientSegment_labels.py` depending on your needs.
+
+4. **Input the Dataset Name**  
+    When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
+
+
+5. **View Results**  
+Once the program runs, it will output results in the following format:
+```
+For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
+For lambda = 0.01 : {'ncut': 2.85, 'rcut': 99.36, 'modularity': 0.25, 'CC': 2}
+For lambda = 0.02 : {'ncut': 2.73, 'rcut': 60.61, 'modularity': 0.27, 'CC': 2}
+...
+```
+
+Where:
+- `ncut`: Normalized Cut
+- `rcut`: Ratio Cut
+- `modularity`: Community modularity score
+- `CC`: Number of connected components
+
+
