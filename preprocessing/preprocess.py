@@ -1,7 +1,7 @@
 import pandas as pd
 
 def AMLSim_preprocessing(dimension):
-    dataset_path = f"datasets/AMLSimData/{dimension}"
+    dataset_path = f"datasets/AMLSim/{dimension}"
 
     accounts = pd.read_csv(f'{dataset_path}/accounts.csv')
     transactions = pd.read_csv(f'{dataset_path}/transactions.csv')
