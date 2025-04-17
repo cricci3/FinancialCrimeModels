@@ -3,7 +3,7 @@
 ## How to Run
 
 1. **Download the Dataset**  
-   Use the links provided below in `Data Sources` section to download the datasets.
+   Use the links provided below in **Data Sources** section to download the datasets.
 
 2. **Setup the Folder Structure**  
    In the root directory of the project, create a folder named `Datasets` with the following structure:
