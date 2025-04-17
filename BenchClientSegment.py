@@ -4,8 +4,7 @@ import json
 import numpy as np
 from squic_folder.SQUIC_functions import *
 import networkx as nx
-from sklearn.metrics import silhouette_score
-from sklearn.cluster import SpectralClustering
+from networkx.algorithms import community
 
 
 def parse_input(user_input):
@@ -137,7 +136,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
 
 
 def clustering(dict_results, lambdas):
-    dict_labels = {}
+    dict_cluster = {}
 
     for rho in lambdas:
         X = dict_results[rho]
@@ -151,51 +150,40 @@ def clustering(dict_results, lambdas):
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
 
-        # Define a range of number of cluster
-        cluster_range = range(2, 11)
-        sil_scores = []
-        cluster_labels = {}
+        # Louvain
+        partition = community.louvain_communities(G)
+        
+        print(f"Number of cluster for rho {rho} is {len(partition)}")
 
-        for n in cluster_range:
-            # Perform SpectralClustering
-            clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
-            labels = clustering.fit_predict(np.asarray(X))
-            # labels = clustering.fit_predict(G)
-
-            
-            # Compute the Silhouette Score
-            score = silhouette_score(np.asarray(X), labels, metric='precomputed')
-            # score = silhouette_score(G, labels, metric='precomputed')
-            sil_scores.append(score)
-            cluster_labels[n] = labels
-
-        # Plot Silhouette Score for each number of clusters
-        plt.plot(cluster_range, sil_scores, marker='o')
-        plt.xlabel('Number of clusters')
-        plt.ylabel('Silhouette Score')
-        plt.title('Silhouette Score Method')
-        plt.show()
-
-        # Automatically choose the best number of clusters
-        best_n_clusters = cluster_range[np.argmax(sil_scores)]
-        labels = cluster_labels[best_n_clusters]
-
-        print(f"Best number of clusters for rho={rho}: {best_n_clusters}")
-
-        dict_labels[rho] = labels
+        dict_cluster[rho] = partition
     
-    return dict_labels
+    return dict_cluster
     
 
-def internal_metrics(dict_labels, adjaceny_matrices, lambdas):
+def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
+    int_metrics = {rho: {} for rho in lambdas}
+
     for rho in lambdas:
-        labels = dict_labels[rho]
+        partition = dict_cluster[rho]
+        node_to_community = {}
+        for idx, comm in enumerate(partition):
+            for node in comm:
+                node_to_community[node] = idx
+
+        labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
 
         # Normalized Cut and Ratio Cut
         X = adjaceny_matrices[rho]
-        n_cut = 0
+
+        # Ensure all off-diagonal entries are positive
+        X = np.abs(X) 
+
+        # Ensure diagonal entries are zero
+        np.fill_diagonal(X, 0)
 
         unique_labels = np.unique(labels)
+
+        n_cut = 0
         r_cut = 0
         
         for cluster in unique_labels:
@@ -206,16 +194,27 @@ def internal_metrics(dict_labels, adjaceny_matrices, lambdas):
             assoc = X[mask][:, mask].sum()
             
             n_cut += cut / (vol + 1e-10)  # Avoid division by zero
-            r_cut += cut
-        
-        print(n_cut)
-        print(r_cut / len(unique_labels))
-        
-        # Ratio Cut
-        
+            r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
+
+        int_metrics[rho]["ncut"] = float(round(n_cut, 2))
+        int_metrics[rho]["rcut"] = float(round(r_cut, 2))
+                
         # Modularity
+        G = nx.from_numpy_array(X)
+
+        modularity = community.modularity(G, dict_cluster[rho])
+        int_metrics[rho]['modularity'] = float(round(modularity, 2))
         
-        # Strongly Connected Components
+        # # Strongly Connected Components
+        # if not G.is_directed():
+        #     G_dir = G.to_directed()
+        # else:
+        #     G_dir = G
+
+        # Connected Components
+        int_metrics[rho]['CC'] = nx.number_connected_components(G)
+
+    return int_metrics
     
 
 def create_graph(X):
@@ -236,10 +235,12 @@ if __name__ == '__main__':
     adjaceny_matrices, table_results, lambdas = squic_computation(Y_norm, name, dimension)
     
     # Use the extracted W for clustering
-    dict_labels = clustering(adjaceny_matrices, lambdas)
+    dict_cluster = clustering(adjaceny_matrices, lambdas)
 
     # Report internal metrics on the clustering
-    internal_metrics(dict_labels, adjaceny_matrices, lambdas)
+    int_metrics = internal_metrics(dict_cluster, adjaceny_matrices, lambdas)
+
+    print(int_metrics)
 
     # Visualise with cosmograph
     # create_graph()
