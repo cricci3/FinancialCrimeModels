@@ -1,10 +1,12 @@
-from preprocessing.preprocess import *
+from workflow.preprocess import *
+from workflow.SQUIC_functions import *
+
 import matplotlib.pyplot as plt
 import json
 import numpy as np
-from workflow.SQUIC_functions import *
 import networkx as nx
 from networkx.algorithms import community
+from cosmograph import cosmo
 
 
 def parse_input(user_input):
@@ -220,9 +222,91 @@ def visualize_metrics(metrics, lambdas):
     # for every rho print RCut, NCut, Modularity and NCC
     for rho in lambdas:
         print(f"For rho {rho} : {metrics[rho]}")
-
-    pass
+    return
     
 
-def create_graph(X):
-    pass
+def create_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension):
+    for rho in lambdas:
+        # Extract matrix X associated to rho
+        X = dict_adj_matrix[rho]
+
+        # Create a graph from matrix X
+        G = nx.from_numpy_array(X)
+
+        # Extract clustering associated to matrix X with l=rho
+        partition = dict_partition[rho]
+
+        # Sets node attributes from a given value or dictionary of values.
+        nx.set_node_attributes(G, partition, 'community')
+
+        # Nodes: build dataframe from node attributes
+        nodes_data = []
+        for node, data in G.nodes(data=True):
+            nodes_data.append({
+                'id': node,
+                'label': str(node),
+                'community': data.get('community', 'unknown'),
+                'degree': G.degree[node]
+            })
+        points = pd.DataFrame(nodes_data)
+        
+        # Edges: extract links with weights
+        links_data = []
+        for u, v, d in G.edges(data=True):
+            links_data.append({
+                'source': u,
+                'target': v,
+                'weight': d.get('weight', 1.0)
+            })
+        links = pd.DataFrame(links_data)
+
+        widget = cosmo(
+            points=points,
+            links=links,
+            point_id_by='id',
+            link_source_by='source',
+            link_target_by='target',
+            point_color_by='community',
+            point_label_by='label',
+            point_size_by='degree'  # You can change this to a centrality measure if you want
+        )
+        # display(widget)
+        # filename = f"graph_{ds_name}_{ds_dimension}.html"
+        # html = widget.to_html()
+
+        # with open(filename, "w") as f:
+        #     f.write(html)
+        # print(f"Cosmograph graph saved to {filename}")
+        
+        # webbrowser.open(filename)
+
+        # Map communities to integers (this will ensure color mapping works)
+        community_mapping = {comm: idx for idx, comm in enumerate(set(partition.values()))}
+        community_colors = [community_mapping[data['community']] for _, data in G.nodes(data=True)]
+
+        # Define node size based on degree
+        node_size = [G.degree(node) * 100 for node in G.nodes()]
+
+        # Plot the graph
+        plt.figure(figsize=(10, 8))
+        pos = nx.spring_layout(G, seed=42)  # Use a layout for better aesthetics
+
+        # Use a color map for community
+        cmap = plt.cm.get_cmap("viridis", len(set(community_colors)))  # "viridis" is just one example
+
+        # Draw nodes with colors based on community and sizes based on degree
+        nx.draw_networkx_nodes(
+            G, pos, node_color=community_colors, node_size=node_size, cmap=cmap
+        )
+
+        # Draw edges
+        nx.draw_networkx_edges(G, pos, alpha=0.5)
+
+        # Draw labels for nodes
+        nx.draw_networkx_labels(G, pos, font_size=12, font_color='black')
+
+        # Add title and show the plot
+        plt.title(f"Graph with rho = {rho}")
+        plt.axis('off')  # Turn off the axis
+        plt.show()
+    return
