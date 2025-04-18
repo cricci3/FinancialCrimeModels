@@ -23,4 +23,4 @@ if __name__ == '__main__':
     visualize_metrics(int_metrics, lambdas)
 
     # Visualise with cosmograph
-    # create_graph()
+    create_graph(adjaceny_matrices, dict_cluster, lambdas, name, dimension)
