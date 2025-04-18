@@ -2,6 +2,9 @@
 
 ## How to Run
 
+0. **Install SQUIC**
+    Follow the [SQUIC User Manual](https://www.gitlab.ci.inf.usi.ch/SQUIC/gitlab-profile/-/blob/main/SQUIC_User_Manual.pdf) to install SQUIC Library.
+
 1. **Download the Dataset**  
    Use the links provided in [**Data Sources**](README.md#data-sources) section to download the datasets.
 
