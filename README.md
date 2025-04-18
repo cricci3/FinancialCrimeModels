@@ -38,12 +38,12 @@
 
 5. **View Results**  
 Once the program runs, it will output results in the following format:
-```
-For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
-For lambda = 0.01 : {'ncut': 2.85, 'rcut': 99.36, 'modularity': 0.25, 'CC': 2}
-For lambda = 0.02 : {'ncut': 2.73, 'rcut': 60.61, 'modularity': 0.27, 'CC': 2}
-...
-```
+    ```
+    For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
+    For lambda = 0.01 : {'ncut': 2.85, 'rcut': 99.36, 'modularity': 0.25, 'CC': 2}
+    For lambda = 0.02 : {'ncut': 2.73, 'rcut': 60.61, 'modularity': 0.27, 'CC': 2}
+    ...
+    ```
 
 Where:
 - `ncut`: Normalized Cut
