@@ -12,13 +12,13 @@ if __name__ == '__main__':
     Y_norm = normalization(df, name)
 
     # Run SQUIC_fit
-    X_matrices, _ = squic_fit_computation(Y_norm, name, dimension)
+    W_matrices, _ = squic_fit_computation(Y_norm, name, dimension)
     
     # Use the extracted W for clustering
-    dict_cluster = clustering(X_matrices)
+    dict_cluster = clustering(W_matrices)
 
     # Report internal metrics on the clustering
-    int_metrics = internal_metrics(dict_cluster, X_matrices)
+    int_metrics = internal_metrics(dict_cluster, W_matrices)
     visualize_metrics(int_metrics)
 
     # Visualise with cosmograph

@@ -100,7 +100,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
 
     ROWS = len(Y_norm)
 
-    X_matrices = {}
+    W_matrices = {}
 
     data_nnz = []
     data_nnzr = []
@@ -108,17 +108,17 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     data_sym = []
 
     for rho in lambdas:
-        X_matrices[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
+        W_matrices[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
-        nnz, nnz_r = nnz_fit(X_matrices[rho], ROWS)
+        nnz, nnz_r = nnz_fit(W_matrices[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix:
-            sparsity_pattern(X_matrices[rho])
+            sparsity_pattern(W_matrices[rho])
 
-        if is_symmetric(X_matrices[rho]):
+        if is_symmetric(W_matrices[rho]):
             #print(f"✅ Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
@@ -136,13 +136,13 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
             ["Symmetric"] + data_sym
     ]
 
-    return X_matrices, table_fit_norm
+    return W_matrices, table_fit_norm
 
 
-def clustering(X_matrices):
+def clustering(W_matrices):
     dict_cluster = {}
 
-    for rho, X in X_matrices.items():
+    for rho, X in W_matrices.items():
         # Ensure all off-diagonal entries are positive
         X = np.abs(X) 
 
@@ -162,10 +162,10 @@ def clustering(X_matrices):
     return dict_cluster
     
 
-def internal_metrics(dict_cluster, X_matrices):
-    int_metrics = {rho: {} for rho in X_matrices.keys()}
+def internal_metrics(dict_cluster, W_matrices):
+    int_metrics = {rho: {} for rho in W_matrices.keys()}
 
-    for l, X in X_matrices.items():
+    for l, X in W_matrices.items():
 
         partition = dict_cluster[l]
         node_to_community = {}
@@ -246,8 +246,8 @@ def visualize_metrics(metrics):
     return
     
 
-def visualize_graph(X_matrices, dict_partition, ds_name, ds_dimension):
-    for l, X in X_matrices:
+def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
+    for l, X in W_matrices:
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
 
