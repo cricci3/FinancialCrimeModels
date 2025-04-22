@@ -6,19 +6,20 @@ import time
 from scipy.sparse import csr_matrix
 
 
-def compute_squic(Y, l):
+def compute_squic(Y, lambda_val):
     '''
     Function to compute SQUIC
 
     Return:
-    - X: adjacency matrix
+    - X: Precision Matrix
+    - Theta: inverse of X -> Covariance Matrix
     - time: computation time
     '''
-    [X,_,times,_,_,_] = squic.run(Y,l)
+    [X,Theta,times,_,_,_] = squic.run(Y,lambda_val)
 
     time = times[0]
 
-    return X, time
+    return X, Theta, time
 
 
 def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
