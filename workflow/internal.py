@@ -7,6 +7,7 @@ import numpy as np
 import networkx as nx
 from networkx.algorithms import community
 from cosmograph import cosmo
+import matplotlib.cm as cm
 
 
 def parse_input(user_input):
@@ -90,7 +91,7 @@ def normalization(df, name):
     return Y_new
 
 
-def squic_computation(Y_norm, name, dimension, printMatrix=False):
+def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     with open('lambda_values.json') as f:
             lambda_data = json.load(f)
         
@@ -117,7 +118,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
             sparsity_pattern(fit_norm_dict[rho])
 
         if is_symmetric(fit_norm_dict[rho]):
-            print(f"✅ Matrix is symmetric per rho {rho}")
+            #print(f"✅ Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
             print(f"❌ Matrix is not symmetric per rho {rho}")
@@ -172,7 +173,7 @@ def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
             for node in comm:
                 node_to_community[node] = idx
 
-        labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
+        # labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
 
         # Normalized Cut and Ratio Cut
         X = adjaceny_matrices[rho]
@@ -183,26 +184,48 @@ def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
         # Ensure diagonal entries are zero
         np.fill_diagonal(X, 0)
 
-        unique_labels = np.unique(labels)
+        # Modularity
+        G = nx.from_numpy_array(X)
+
+        # unique_labels = np.unique(labels)
 
         n_cut = 0
         r_cut = 0
         
-        for cluster in unique_labels:
-            mask = (labels == cluster)
-            not_mask = ~mask
-            cut = X[mask][:, not_mask].sum()
-            vol = X[mask].sum()
-            assoc = X[mask][:, mask].sum()
+        # for cluster in unique_labels:
+        #     mask = (labels == cluster)
+        #     not_mask = ~mask
+        #     cut = X[mask][:, not_mask].sum()
+        #     vol = X[mask].sum()
+        #     assoc = X[mask][:, mask].sum()
             
-            n_cut += cut / (vol + 1e-10)  # Avoid division by zero
-            r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
+        #     n_cut += cut / (vol + 1e-10)  # Avoid division by zero
+        #     r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
+
+        clusters = set(node_to_community.values()) # set of clusters
+
+        for cluster_id in clusters:
+            # Nodes in this cluster
+            cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
+            
+            # Nodes not in this cluster
+            other_nodes = [n for n in G.nodes() if n not in cluster_nodes]
+            
+            # Calculate cut: sum of weights between cluster and rest of graph
+            cut = nx.cut_size(G, cluster_nodes, other_nodes, weight='weight')
+            
+            # Calculate size of cluster
+            size = len(cluster_nodes)
+
+            # Calculate volume of cluster (sum of weights of edges connected to nodes in cluster)
+            volume = sum(dict(G.degree(cluster_nodes, weight='weight')).values())
+
+            # Normalized cut and ratio cut
+            r_cut += cut / size if size > 0 else 0
+            n_cut += cut / volume if volume > 0 else 0
 
         int_metrics[rho]["ncut"] = float(round(n_cut, 2))
         int_metrics[rho]["rcut"] = float(round(r_cut, 2))
-                
-        # Modularity
-        G = nx.from_numpy_array(X)
 
         modularity = community.modularity(G, dict_cluster[rho])
         int_metrics[rho]['modularity'] = float(round(modularity, 2))
@@ -225,7 +248,7 @@ def visualize_metrics(metrics, lambdas):
     return
     
 
-def create_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension):
+def visualize_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension):
     for rho in lambdas:
         # Extract matrix X associated to rho
         X = dict_adj_matrix[rho]
@@ -270,6 +293,8 @@ def create_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension
             point_label_by='label',
             point_size_by='degree'  # You can change this to a centrality measure if you want
         )
+
+        # Display cosmograph but not working
         # display(widget)
         # filename = f"graph_{ds_name}_{ds_dimension}.html"
         # html = widget.to_html()
@@ -280,33 +305,47 @@ def create_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension
         
         # webbrowser.open(filename)
 
-        # Map communities to integers (this will ensure color mapping works)
-        community_mapping = {comm: idx for idx, comm in enumerate(set(partition.values()))}
-        community_colors = [community_mapping[data['community']] for _, data in G.nodes(data=True)]
+        # Map community labels to integers for coloring
+        unique_communities = list(points['community'].unique())
+        community_to_int = {community: idx for idx, community in enumerate(unique_communities)}
+        node_colors = points['community'].map(community_to_int)
 
-        # Define node size based on degree
-        node_size = [G.degree(node) * 100 for node in G.nodes()]
+        # Normalize colors for colormap
+        cmap = cm.get_cmap('tab10', len(unique_communities))
 
-        # Plot the graph
-        plt.figure(figsize=(10, 8))
-        pos = nx.spring_layout(G, seed=42)  # Use a layout for better aesthetics
+        # Define node sizes (scaled degree)
+        node_sizes = points['degree'] * 100  # or change the multiplier for bigger/smaller nodes
 
-        # Use a color map for community
-        cmap = plt.cm.get_cmap("viridis", len(set(community_colors)))  # "viridis" is just one example
+        # Generate layout
+        pos = nx.spring_layout(G, seed=42)  # spring layout works well for general-purpose
 
-        # Draw nodes with colors based on community and sizes based on degree
+        # Create the figure
+        plt.figure(figsize=(12, 9))
+
+        # Draw nodes with color and size
         nx.draw_networkx_nodes(
-            G, pos, node_color=community_colors, node_size=node_size, cmap=cmap
+            G, pos,
+            node_color=node_colors,
+            node_size=node_sizes,
+            cmap=cmap,
+            alpha=0.9
         )
 
         # Draw edges
-        nx.draw_networkx_edges(G, pos, alpha=0.5)
+        nx.draw_networkx_edges(G, pos, alpha=0.4)
 
-        # Draw labels for nodes
-        nx.draw_networkx_labels(G, pos, font_size=12, font_color='black')
+        # Draw labels (optional)
+        nx.draw_networkx_labels(G, pos, font_size=10)
 
-        # Add title and show the plot
-        plt.title(f"Graph with rho = {rho}")
-        plt.axis('off')  # Turn off the axis
+        # Add legend
+        for community, idx in community_to_int.items():
+            plt.scatter([], [], c=[cmap(idx)], label=str(community), s=100)
+        plt.legend(scatterpoints=1, frameon=False, labelspacing=1, title="Community")
+
+        plt.title(f"Graph for rho = {rho}", fontsize=14)
+        plt.axis('off')
+        plt.tight_layout()
         plt.show()
+
+
     return
