@@ -12,15 +12,14 @@ if __name__ == '__main__':
     Y_norm = normalization(df, name)
 
     # Run SQUIC_fit
-    adjaceny_matrices, table_results, lambdas = squic_computation(Y_norm, name, dimension)
+    adjaceny_matrices, _, lambdas = squic_fit_computation(Y_norm, name, dimension)
     
     # Use the extracted W for clustering
     dict_cluster = clustering(adjaceny_matrices, lambdas)
 
     # Report internal metrics on the clustering
     int_metrics = internal_metrics(dict_cluster, adjaceny_matrices, lambdas)
-
     visualize_metrics(int_metrics, lambdas)
 
     # Visualise with cosmograph
-    create_graph(adjaceny_matrices, dict_cluster, lambdas, name, dimension)
+    # visualize_graph(adjaceny_matrices, dict_cluster, lambdas, name, dimension)
