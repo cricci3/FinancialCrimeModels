@@ -53,6 +53,7 @@ def load_dataset():
 
     return df, name, dimension
 
+
 def extract_timeseries(df):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
@@ -99,7 +100,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
 
     ROWS = len(Y_norm)
 
-    fit_norm_dict = {}
+    X_matrices = {}
 
     data_nnz = []
     data_nnzr = []
@@ -107,17 +108,17 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     data_sym = []
 
     for rho in lambdas:
-        fit_norm_dict[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
+        X_matrices[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
-        nnz, nnz_r = nnz_fit(fit_norm_dict[rho], ROWS)
+        nnz, nnz_r = nnz_fit(X_matrices[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix:
-            sparsity_pattern(fit_norm_dict[rho])
+            sparsity_pattern(X_matrices[rho])
 
-        if is_symmetric(fit_norm_dict[rho]):
+        if is_symmetric(X_matrices[rho]):
             #print(f"✅ Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
@@ -135,15 +136,13 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
             ["Symmetric"] + data_sym
     ]
 
-    return fit_norm_dict, table_fit_norm, lambdas
+    return X_matrices, table_fit_norm
 
 
-def clustering(dict_results, lambdas):
+def clustering(X_matrices):
     dict_cluster = {}
 
-    for rho in lambdas:
-        X = dict_results[rho]
-
+    for rho, X in X_matrices.items():
         # Ensure all off-diagonal entries are positive
         X = np.abs(X) 
 
@@ -163,20 +162,18 @@ def clustering(dict_results, lambdas):
     return dict_cluster
     
 
-def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
-    int_metrics = {rho: {} for rho in lambdas}
+def internal_metrics(dict_cluster, X_matrices):
+    int_metrics = {rho: {} for rho in X_matrices.keys()}
 
-    for rho in lambdas:
-        partition = dict_cluster[rho]
+    for l, X in X_matrices.items():
+
+        partition = dict_cluster[l]
         node_to_community = {}
         for idx, comm in enumerate(partition):
             for node in comm:
                 node_to_community[node] = idx
 
         # labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
-
-        # Normalized Cut and Ratio Cut
-        X = adjaceny_matrices[rho]
 
         # Ensure all off-diagonal entries are positive
         X = np.abs(X) 
@@ -224,11 +221,11 @@ def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
             r_cut += cut / size if size > 0 else 0
             n_cut += cut / volume if volume > 0 else 0
 
-        int_metrics[rho]["ncut"] = float(round(n_cut, 2))
-        int_metrics[rho]["rcut"] = float(round(r_cut, 2))
+        int_metrics[l]["ncut"] = float(round(n_cut, 2))
+        int_metrics[l]["rcut"] = float(round(r_cut, 2))
 
-        modularity = community.modularity(G, dict_cluster[rho])
-        int_metrics[rho]['modularity'] = float(round(modularity, 2))
+        modularity = community.modularity(G, dict_cluster[l])
+        int_metrics[l]['modularity'] = float(round(modularity, 2))
         
         # # Strongly Connected Components
         # if not G.is_directed():
@@ -237,27 +234,25 @@ def internal_metrics(dict_cluster, adjaceny_matrices, lambdas):
         #     G_dir = G
 
         # Connected Components
-        int_metrics[rho]['CC'] = nx.number_connected_components(G)
+        int_metrics[l]['CC'] = nx.number_connected_components(G)
 
     return int_metrics
 
-def visualize_metrics(metrics, lambdas):
+
+def visualize_metrics(metrics):
     # for every rho print RCut, NCut, Modularity and NCC
-    for rho in lambdas:
-        print(f"For rho {rho} : {metrics[rho]}")
+    for l, results in metrics.items():
+        print(f"For rho {l} : {results}")
     return
     
 
-def visualize_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimension):
-    for rho in lambdas:
-        # Extract matrix X associated to rho
-        X = dict_adj_matrix[rho]
-
+def visualize_graph(X_matrices, dict_partition, ds_name, ds_dimension):
+    for l, X in X_matrices:
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
 
         # Extract clustering associated to matrix X with l=rho
-        partition = dict_partition[rho]
+        partition = dict_partition[l]
 
         # Sets node attributes from a given value or dictionary of values.
         nx.set_node_attributes(G, partition, 'community')
@@ -342,10 +337,9 @@ def visualize_graph(dict_adj_matrix, dict_partition, lambdas, ds_name, ds_dimens
             plt.scatter([], [], c=[cmap(idx)], label=str(community), s=100)
         plt.legend(scatterpoints=1, frameon=False, labelspacing=1, title="Community")
 
-        plt.title(f"Graph for rho = {rho}", fontsize=14)
+        plt.title(f"Graph for rho = {l}", fontsize=14)
         plt.axis('off')
         plt.tight_layout()
         plt.show()
-
 
     return
