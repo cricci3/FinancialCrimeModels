@@ -1,17 +1,38 @@
-
+from workflow.internal import extract_timeseries, normalization, squic_fit_computation, clustering, internal_metrics, visualize_metrics, visualize_graph
+from workflow.external import load_dataset, squic_computation, lda, external_metrics
 
 
 if __name__ == '__main__':
-    # Load dataset (I only pass the name)
+    # Load dataset (the user will pass the name)
+    df, name, dimension = load_dataset()
 
     # Extract time series
+    extract_timeseries(df)
 
     # Normalise time series
+    Y_norm = normalization(df, name)
 
-    # Run SQUIC_fit and SQUIC
+    # Run SQUIC_fit to compute W
+    # W_matrices, _ = squic_fit_computation(Y_norm, name, dimension)
 
-    # Use the extracted W (check if symmetric) for clustering, and extracted Θ for LDA
+    # Run SQUIC to compute Θ
+    Theta_matrices, _ = squic_computation(Y_norm, name, dimension)
 
-    # Report internal metrics on the clustering of W, and visualise with cosmograph
+    # Use the extracted W for clustering
+    # dict_cluster = clustering(W_matrices) # lambdas can be removed
 
-    # Report external metrics on the classification of Θ, and visualise with cosmograph.
+    # extract Θ for LDA
+    dict_scores, y = lda(Theta_matrices, df)
+
+    # Report internal metrics on the clustering
+    # int_metrics = internal_metrics(dict_cluster, W_matrices)
+    # visualize_metrics(int_metrics)
+
+    # Visualise with cosmograph
+    # visualize_graph(W_matrices, dict_cluster, name, dimension)
+
+    # Report external metrics on the classification of Θ
+    ext_metrics = external_metrics(dict_scores, y)
+    print(ext_metrics)
+
+    # Visualize with cosmograph
