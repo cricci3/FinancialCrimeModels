@@ -247,15 +247,23 @@ def visualize_metrics(metrics):
     
 
 def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
-    for l, X in W_matrices:
+    widget_dict = {}
+
+    for l, X in W_matrices.items():
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
 
         # Extract clustering associated to matrix X with l=rho
         partition = dict_partition[l]
+        
+        # Convert partition list of sets to a node-to-community mapping
+        community_mapping = {}
+        for community_id, community_set in enumerate(partition):
+            for node in community_set:
+                community_mapping[node] = str(community_id)
 
         # Sets node attributes from a given value or dictionary of values.
-        nx.set_node_attributes(G, partition, 'community')
+        nx.set_node_attributes(G, community_mapping, 'community')
 
         # Nodes: build dataframe from node attributes
         nodes_data = []
@@ -263,10 +271,13 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
             nodes_data.append({
                 'id': node,
                 'label': str(node),
-                'community': data.get('community', 'unknown'),
+                'community': data.get('community'),
                 'degree': G.degree[node]
             })
         points = pd.DataFrame(nodes_data)
+
+        points = pd.DataFrame(nodes_data)
+        points['community'] = points['community'].astype('category')
         
         # Edges: extract links with weights
         links_data = []
@@ -286,60 +297,53 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
             link_target_by='target',
             point_color_by='community',
             point_label_by='label',
-            point_size_by='degree'  # You can change this to a centrality measure if you want
+            point_size_by='degree'        
         )
 
-        # Display cosmograph but not working
-        # display(widget)
-        # filename = f"graph_{ds_name}_{ds_dimension}.html"
-        # html = widget.to_html()
-
-        # with open(filename, "w") as f:
-        #     f.write(html)
-        # print(f"Cosmograph graph saved to {filename}")
-        
-        # webbrowser.open(filename)
+        widget_dict[l] = widget
+    
+        # Show with NX
 
         # Map community labels to integers for coloring
-        unique_communities = list(points['community'].unique())
-        community_to_int = {community: idx for idx, community in enumerate(unique_communities)}
-        node_colors = points['community'].map(community_to_int)
+        # unique_communities = list(points['community'].unique())
+        # community_to_int = {community: idx for idx, community in enumerate(unique_communities)}
+        # node_colors = points['community'].map(community_to_int)
 
-        # Normalize colors for colormap
-        cmap = cm.get_cmap('tab10', len(unique_communities))
+        # # Normalize colors for colormap
+        # cmap = cm.get_cmap('tab10', len(unique_communities))
 
-        # Define node sizes (scaled degree)
-        node_sizes = points['degree'] * 100  # or change the multiplier for bigger/smaller nodes
+        # # Define node sizes (scaled degree)
+        # node_sizes = points['degree'] * 100  # or change the multiplier for bigger/smaller nodes
 
-        # Generate layout
-        pos = nx.spring_layout(G, seed=42)  # spring layout works well for general-purpose
+        # # Generate layout
+        # pos = nx.spring_layout(G, seed=42)  # spring layout works well for general-purpose
 
-        # Create the figure
-        plt.figure(figsize=(12, 9))
+        # # Create the figure
+        # plt.figure(figsize=(12, 9))
 
-        # Draw nodes with color and size
-        nx.draw_networkx_nodes(
-            G, pos,
-            node_color=node_colors,
-            node_size=node_sizes,
-            cmap=cmap,
-            alpha=0.9
-        )
+        # # Draw nodes with color and size
+        # nx.draw_networkx_nodes(
+        #     G, pos,
+        #     node_color=node_colors,
+        #     node_size=node_sizes,
+        #     cmap=cmap,
+        #     alpha=0.9
+        # )
 
-        # Draw edges
-        nx.draw_networkx_edges(G, pos, alpha=0.4)
+        # # Draw edges
+        # nx.draw_networkx_edges(G, pos, alpha=0.4)
 
-        # Draw labels (optional)
-        nx.draw_networkx_labels(G, pos, font_size=10)
+        # # Draw labels (optional)
+        # nx.draw_networkx_labels(G, pos, font_size=10)
 
-        # Add legend
-        for community, idx in community_to_int.items():
-            plt.scatter([], [], c=[cmap(idx)], label=str(community), s=100)
-        plt.legend(scatterpoints=1, frameon=False, labelspacing=1, title="Community")
+        # # Add legend
+        # for community, idx in community_to_int.items():
+        #     plt.scatter([], [], c=[cmap(idx)], label=str(community), s=100)
+        # plt.legend(scatterpoints=1, frameon=False, labelspacing=1, title="Community")
 
-        plt.title(f"Graph for rho = {l}", fontsize=14)
-        plt.axis('off')
-        plt.tight_layout()
-        plt.show()
+        # plt.title(f"Graph for rho = {l}", fontsize=14)
+        # plt.axis('off')
+        # plt.tight_layout()
+        # plt.show()
 
-    return
+    return widget_dict
