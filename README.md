@@ -5,16 +5,25 @@
 0. **Install SQUIC**
     Follow the [SQUIC User Manual](https://www.gitlab.ci.inf.usi.ch/SQUIC/gitlab-profile/-/blob/main/SQUIC_User_Manual.pdf) to install SQUIC Library.
 
-1. **Download the Dataset**  
+1. **Install all required dependencies**
+    
+    Python 3.10 or higher is required, then install all required dependencies with:
+
+    ```
+    pip install -r requirements.txt
+    ```
+
+2. **Download the Dataset**  
    Use the links provided in [**Data Sources**](README.md#data-sources) section to download the datasets.
 
-2. **Setup the Folder Structure**  
+3. **Setup the Folder Structure**  
    In the root directory of the project, create a folder named `Datasets` with the following structure:
 
     ```
     FinancialCrimeModels
     |_ BenchClientSegment.py
     |_ BenchClientSegment_labels.py
+    |_ ...
     |_ Datasets
         |_ AMLSim
             |_ 100 (with inside the csv files)
@@ -32,15 +41,15 @@
 
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
-3. **Run the Program**  
+4. **Run the Program**  
     Execute either `BenchClientSegment.py` or `BenchClientSegment_labels.py` depending on your needs.
 
-4. **Input the Dataset Name**  
+5. **Input the Dataset Name**  
     When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
 
 
-5. **View Results**  
-Once the program runs, it will output results in the following format:
+6. **View Results**  
+    Once the program runs, it will output results in the following format:
     ```
     For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
     For lambda = 0.01 : {'ncut': 2.85, 'rcut': 99.36, 'modularity': 0.25, 'CC': 2}
