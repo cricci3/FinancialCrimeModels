@@ -9,3 +9,5 @@
 - [PaySim: A Financial Mobile Money Simulator for Fraud Detection](https://www.researchgate.net/publication/313138956_PAYSIM_A_FINANCIAL_MOBILE_MONEY_SIMULATOR_FOR_FRAUD_DETECTION), Edgar Alonso Lopez-Rojas, Stefan Axelsson
 
 - AMLSim [Scalable Graph Learning for Anti-Money Laundering: A First Look](https://arxiv.org/abs/1812.00076), Mark Weber, Jie Chen, Toyotaro Suzumura, Aldo Pareja, Tengfei Ma, Hiroki Kanezashi, Tim Kaler, Charles E. Leiserson, Tao B. Schardl
+
+- Libre datasets [Anomaly Detection in Graphs of Bank Transactions for Anti Money Laundering Applications](https://ieeexplore.ieee.org/document/9762926), Bogdan Dumitrescu, Andra Băltoiu, Ştefania Budulan.
