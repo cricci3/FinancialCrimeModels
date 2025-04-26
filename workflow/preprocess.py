@@ -99,7 +99,7 @@ def PaySim_preprocessing(dimension):
     full_range = range(df.index.min(), df.index.max() + 1)
 
     # Reindex to include all steps, then forward fill
-    df = df.reindex(full_range).fillna(method='ffill').fillna(method='bfill')
+    df = df.reindex(full_range).ffill().bfill()
 
     return df
 
