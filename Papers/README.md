@@ -13,3 +13,5 @@
 - Libre datasets [Anomaly Detection in Graphs of Bank Transactions for Anti Money Laundering Applications](https://ieeexplore.ieee.org/document/9762926), Bogdan Dumitrescu, Andra Băltoiu, Ştefania Budulan.
 
 - Algorithm 1042 [Sparse Precision Matrix Estimation with SQUIC](https://dl.acm.org/doi/10.1145/3650108)
+
+- Louvain Clustering Method [Fast unfolding of communities in large networks](https://arxiv.org/abs/0803.0476)
