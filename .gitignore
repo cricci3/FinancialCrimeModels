@@ -5,6 +5,7 @@ dgraph/NearbyNet
 datasets/
 images/
 graphs/
+lambda_values.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
