@@ -4,10 +4,15 @@ from workflow.SQUIC_functions import *
 import matplotlib.pyplot as plt
 import matplotlib.colors as plt_color
 import seaborn as sns
+
 import json
 import numpy as np
+
 import networkx as nx
 from networkx.algorithms import community
+from sklearn.cluster import DBSCAN, SpectralClustering
+from sklearn.metrics import silhouette_score
+
 from cosmograph import cosmo
 
 
@@ -199,8 +204,27 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     return W_matrices, table_fit_norm
 
 
+def labels_to_partition(labels):
+    """Convert label array [0,0,1,1,2,2] -> list of sets [{0,1},{2,3},{4,5}]"""
+    clusters = {}
+    for idx, label in enumerate(labels):
+        if label not in clusters:
+            clusters[label] = set()
+        clusters[label].add(idx)
+
+    # Remove noise points if using DBSCAN (-1 labels)
+    if -1 in clusters:
+        del clusters[-1]
+
+    return list(clusters.values())
+
+
 def clustering(W_matrices):
-    dict_cluster = {}
+    dict_cluster = {
+        "louvain" : {},
+        "spectral" : {},
+        "dbscan" : {}
+    }
 
     for rho, X in W_matrices.items():
         # Ensure all off-diagonal entries are positive
@@ -214,87 +238,119 @@ def clustering(W_matrices):
 
         # Louvain
         partition = community.louvain_communities(G)
-        
         # print(f"Number of cluster for rho {rho} is {len(partition)}")
+        dict_cluster['louvain'][rho] = partition
 
-        dict_cluster[rho] = partition
+        # DBSCAN
+        dbscan = DBSCAN(eps=0.2, min_samples=2)
+        labels_dbscan = dbscan.fit_predict(np.asarray(X))
+
+        # Convert labels to list of sets
+        partition_dbscan = labels_to_partition(labels_dbscan)
+        dict_cluster['dbscan'][rho] = partition_dbscan
+
+
+        # Spectral Clustering
+        # Define a range of number of clusters
+        cluster_range = range(2, 11)
+        sil_scores = []
+        cluster_labels = {}
+
+        for n in cluster_range:
+            clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
+            labels = clustering.fit_predict(np.asarray(X))
+
+            # Compute the Silhouette Score
+            score = silhouette_score(np.asarray(X), labels, metric='precomputed')
+            sil_scores.append(score)
+            cluster_labels[n] = labels
+
+        # Automatically choose the best number of clusters
+        best_n_clusters = cluster_range[np.argmax(sil_scores)]
+        labels_spectral = cluster_labels[best_n_clusters]
+        # Convert labels to list of sets
+        partition_spectral = labels_to_partition(labels_spectral)
+
+        dict_cluster['spectral'][rho] = partition_spectral
     
     return dict_cluster
     
 
 def internal_metrics(dict_cluster, W_matrices):
-    int_metrics = {rho: {} for rho in W_matrices.keys()}
+    int_metrics = {
+        rho: {
+            'louvain' : {},
+            'dbscan' : {},
+            'spectral' : {}
+        } for rho in W_matrices.keys()
+    }
 
-    for l, X in W_matrices.items():
+    for method, clustering_results in dict_cluster.items():
+        for l, X in W_matrices.items():
 
-        partition = dict_cluster[l]
-        node_to_community = {}
-        for idx, comm in enumerate(partition):
-            for node in comm:
-                node_to_community[node] = idx
+            partition = clustering_results[l]
 
-        # labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
+            # Ensure all off-diagonal entries are positive
+            X = np.abs(X) 
 
-        # Ensure all off-diagonal entries are positive
-        X = np.abs(X) 
+            # Ensure diagonal entries are zero
+            np.fill_diagonal(X, 0)
 
-        # Ensure diagonal entries are zero
-        np.fill_diagonal(X, 0)
+            # Modularity
+            G = nx.from_numpy_array(X)
 
-        # Modularity
-        G = nx.from_numpy_array(X)
+            node_to_community = {}
+            for idx, comm in enumerate(partition):
+                for node in comm:
+                    node_to_community[node] = idx
 
-        # unique_labels = np.unique(labels)
+            # labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
 
-        n_cut = 0
-        r_cut = 0
-        
-        # for cluster in unique_labels:
-        #     mask = (labels == cluster)
-        #     not_mask = ~mask
-        #     cut = X[mask][:, not_mask].sum()
-        #     vol = X[mask].sum()
-        #     assoc = X[mask][:, mask].sum()
+            # unique_labels = np.unique(labels)
+
+            n_cut = 0
+            r_cut = 0
             
-        #     n_cut += cut / (vol + 1e-10)  # Avoid division by zero
-        #     r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
+            # for cluster in unique_labels:
+            #     mask = (labels == cluster)
+            #     not_mask = ~mask
+            #     cut = X[mask][:, not_mask].sum()
+            #     vol = X[mask].sum()
+            #     assoc = X[mask][:, mask].sum()
+                
+            #     n_cut += cut / (vol + 1e-10)  # Avoid division by zero
+            #     r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
 
-        clusters = set(node_to_community.values()) # set of clusters
+            clusters = set(node_to_community.values()) # set of clusters
 
-        for cluster_id in clusters:
-            # Nodes in this cluster
-            cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
+            for cluster_id in clusters:
+                # Nodes in this cluster
+                cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
+                
+                # Nodes not in this cluster
+                other_nodes = [n for n in G.nodes() if n not in cluster_nodes]
+                
+                # Calculate cut: sum of weights between cluster and rest of graph
+                cut = nx.cut_size(G, cluster_nodes, other_nodes, weight='weight')
+                
+                # Calculate size of cluster
+                size = len(cluster_nodes)
+
+                # Calculate volume of cluster (sum of weights of edges connected to nodes in cluster)
+                volume = sum(dict(G.degree(cluster_nodes, weight='weight')).values())
+
+                # Normalized cut and ratio cut
+                r_cut += cut / size if size > 0 else 0
+                n_cut += cut / volume if volume > 0 else 0
+
+            int_metrics[l][method]["ncut"] = float(round(n_cut, 2))
+            int_metrics[l][method]["rcut"] = float(round(r_cut, 2))
+
+            modularity = community.modularity(G, dict_cluster[method][l])
+            int_metrics[l][method]['modularity'] = float(round(modularity, 2))
             
-            # Nodes not in this cluster
-            other_nodes = [n for n in G.nodes() if n not in cluster_nodes]
-            
-            # Calculate cut: sum of weights between cluster and rest of graph
-            cut = nx.cut_size(G, cluster_nodes, other_nodes, weight='weight')
-            
-            # Calculate size of cluster
-            size = len(cluster_nodes)
-
-            # Calculate volume of cluster (sum of weights of edges connected to nodes in cluster)
-            volume = sum(dict(G.degree(cluster_nodes, weight='weight')).values())
-
-            # Normalized cut and ratio cut
-            r_cut += cut / size if size > 0 else 0
-            n_cut += cut / volume if volume > 0 else 0
-
-        int_metrics[l]["ncut"] = float(round(n_cut, 2))
-        int_metrics[l]["rcut"] = float(round(r_cut, 2))
-
-        modularity = community.modularity(G, dict_cluster[l])
-        int_metrics[l]['modularity'] = float(round(modularity, 2))
-        
-        # # Strongly Connected Components
-        # if not G.is_directed():
-        #     G_dir = G.to_directed()
-        # else:
-        #     G_dir = G
-
-        # Connected Components
-        int_metrics[l]['CC'] = nx.number_connected_components(G)
+            # Connected Components
+            int_metrics[l][method]['CC'] = nx.number_connected_components(G)
 
     return int_metrics
 
@@ -302,7 +358,10 @@ def internal_metrics(dict_cluster, W_matrices):
 def visualize_metrics(metrics):
     # for every rho print RCut, NCut, Modularity and NCC
     for l, results in metrics.items():
-        print(f"For rho {l} : {results}")
+        print(f"For rho = {l}")
+        for method, res in results.items():
+            print(f"    {method} : {res}")
+        print("\n")
     return
     
 
