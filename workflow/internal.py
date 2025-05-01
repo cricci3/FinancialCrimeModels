@@ -60,16 +60,28 @@ def load_dataset():
     return df, name, dimension
 
 
-def extract_timeseries(df):
+def extract_timeseries(df, name):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(15,10))
 
-    # Plot each column (account balance) as a line
-    for user in df.columns:
-        # color = 'mediumseagreen' if user.startswith('C') else 'hotpink'
+    if name == 'AMLSIM':
+        # Plot each column (account balance) as a line
+        for user in df.columns:
+            # color = 'mediumseagreen' if user.startswith('C') else 'hotpink'
 
-        plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
+            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
+
+    elif name == 'PAYSIM':
+        # Plot each column (account balance) as a line
+        for user in df.columns:
+            if user.startswith('C'):
+                color = 'mediumseagreen'
+            elif user.startswith('B'):
+                color = 'crimson'
+            else:
+                color = 'darkturquoise'
+            plt.plot(df.index, df[user], color=color, label=f"User {user}", alpha=0.6)
 
     # Add title and labels
     plt.xlabel("Days", fontsize=22)
