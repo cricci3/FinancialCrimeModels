@@ -11,8 +11,11 @@ if __name__ == '__main__':
     # Normalise time series
     Y_norm = normalization(df, name)
 
+    # Create transaction matrix
+    adj_matrix = adjaceny_matrix(Y_norm, name, dimension)
+
     # Run SQUIC_fit
-    W_matrices, _ = squic_fit_computation(Y_norm, name, dimension)
+    W_matrices, _ = squic_fit_computation(Y_norm, name, dimension, adj_matrix)
     
     # Use the extracted W for clustering
     dict_cluster = clustering(W_matrices)

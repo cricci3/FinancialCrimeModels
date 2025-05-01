@@ -2,12 +2,13 @@ from workflow.preprocess import *
 from workflow.SQUIC_functions import *
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as plt_color
+import seaborn as sns
 import json
 import numpy as np
 import networkx as nx
 from networkx.algorithms import community
 from cosmograph import cosmo
-import matplotlib.cm as cm
 
 
 def parse_input(user_input):
@@ -92,7 +93,66 @@ def normalization(df, name):
     return Y_new
 
 
-def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
+def adjaceny_matrix(Y_norm, name, dimension):
+
+    if name == 'AMLSIM':
+        transactions = pd.read_csv(f'datasets/AMLSim/{dimension}/transactions.csv')
+        orig = "SENDER_ACCOUNT_ID"
+        dest = "RECEIVER_ACCOUNT_ID"
+        amnt = "TX_AMOUNT"
+
+    elif name == 'PAYSIM':
+        transactions = pd.read_csv(f'datasets/paysim/{dimension}/rawLog.csv')
+        orig = "nameOrig"
+        dest = "nameDest"
+        amnt = "amount"
+
+        users_list = []
+
+        for _, row in transactions.iterrows():
+            if row[orig] not in users_list:
+                users_list.append(row[orig])
+            if row[dest] not in users_list:
+                users_list.append(row[dest])
+
+        id_to_int = {user_id: idx for idx, user_id in enumerate(users_list)}       
+
+    elif name == 'LIBRA':
+        transactions = pd.read_csv(f'datasets/libra/realdata/libra_380K.csv')
+        orig = "id_source"
+        dest = "id_destination"
+        amnt = "cum_amount"
+
+    rows = len(Y_norm)
+
+    matrix = np.zeros((rows, rows))
+
+    for _, row in transactions.iterrows():
+        if name == 'AMLSIM' or name == 'LIBRA':
+            orig_acct = int(row[orig])
+            bene_acct = int(row[dest])
+            amount = float(row[amnt])
+        else:
+            orig_acct = int(id_to_int[row[orig]])
+            bene_acct = int(id_to_int[row[dest]])
+            amount = float(row[amnt])
+
+        matrix[orig_acct][bene_acct] += amount
+
+    mask = (matrix == 0) # cover all zeros
+
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(matrix, cmap='YlGnBu', fmt=".2f", cbar=True, mask=mask,
+                linewidths=0.5, linecolor='white')
+
+    plt.xlabel("Receiver Account")
+    plt.ylabel("Sender Account")
+    plt.show()
+
+    return matrix
+
+
+def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
     with open('lambda_values.json') as f:
             lambda_data = json.load(f)
         
@@ -108,7 +168,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     data_sym = []
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit(Y_norm, lambda_val=rho, eta=rho * 0.1)
+        W_matrices[rho], end_time = squic_fit_matrix(Y=Y_norm, l=rho, matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
@@ -119,7 +179,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
             sparsity_pattern(W_matrices[rho])
 
         if is_symmetric(W_matrices[rho]):
-            #print(f"✅ Matrix is symmetric per rho {rho}")
+            print(f"✅ Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
             print(f"❌ Matrix is not symmetric per rho {rho}")
@@ -155,7 +215,7 @@ def clustering(W_matrices):
         # Louvain
         partition = community.louvain_communities(G)
         
-        print(f"Number of cluster for rho {rho} is {len(partition)}")
+        # print(f"Number of cluster for rho {rho} is {len(partition)}")
 
         dict_cluster[rho] = partition
     
@@ -247,6 +307,9 @@ def visualize_metrics(metrics):
     
 
 def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
+    # colors show the clusters
+    # intensity of color shows amount of money within this account (node weight)
+
     widget_dict = {}
 
     for l, X in W_matrices.items():
@@ -272,13 +335,14 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
                 'id': node,
                 'label': str(node),
                 'community': data.get('community'),
-                'degree': G.degree[node]
+                'color': data.get('color'),
+                'degree': G.degree[node] # how many non zero entries there are for a node X
             })
         points = pd.DataFrame(nodes_data)
 
         points = pd.DataFrame(nodes_data)
         points['community'] = points['community'].astype('category')
-        
+
         # Edges: extract links with weights
         links_data = []
         for u, v, d in G.edges(data=True):
@@ -288,6 +352,8 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
                 'weight': d.get('weight', 1.0)
             })
         links = pd.DataFrame(links_data)
+        links['weight'] = links['weight'].abs()  # only positive thickness
+        links['weight'] = links['weight'] * 10  # only positive thickness
 
         widget = cosmo(
             points=points,
@@ -295,8 +361,10 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
             point_id_by='id',
             link_source_by='source',
             link_target_by='target',
+            link_width_by='weight', # width of an edge given by weight = value in X between i and j
+            link_color_by='community',
             point_color_by='community',
-            point_label_by='label',
+            point_label_by='label', # or community
             point_size_by='degree'        
         )
 
