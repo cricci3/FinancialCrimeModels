@@ -94,13 +94,14 @@ def lda(Theta_matrices, df):
     y = X_df.index.str.startswith('C').astype(int)  # 1 for C‑columns, 0 for M‑columns
 
     # Class means (p×1)
-    mu_M = X_df[y == 0].mean(axis=0).to_numpy()[:, None]
-    mu_C = X_df[y == 1].mean(axis=0).to_numpy()[:, None]
-    mean_diff = mu_C - mu_M
-
+    mu_M = X_df[y == 0].mean(axis=0).to_numpy()
+    mu_C = X_df[y == 1].mean(axis=0).to_numpy()
+    mean_diff = (mu_C - mu_M).reshape(-1, 1)
+    
     dict_scores = {}
 
-    for l, Theta in Theta_matrices.items():   
+    for l, Theta in Theta_matrices.items():
+        print(Theta.shape)
         # LDA weight vector
         w = Theta @ mean_diff
         w /= np.linalg.norm(w)
