@@ -25,4 +25,4 @@ if __name__ == '__main__':
     visualize_metrics(int_metrics)
 
     # Visualise with cosmograph
-    # visualize_graph(adjaceny_matrices, dict_cluster, lambdas, name, dimension)
+    # visualize_graph(W_matrices, dict_cluster, name, dimension)

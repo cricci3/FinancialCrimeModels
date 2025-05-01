@@ -214,7 +214,9 @@ def labels_to_partition(labels):
 
     # Remove noise points if using DBSCAN (-1 labels)
     if -1 in clusters:
-        del clusters[-1]
+        noise_nodes = clusters.pop(-1)
+        for node in noise_nodes:
+            clusters[f'noise_{node}'] = {node}  # unique labels for noise
 
     return list(clusters.values())
 
@@ -352,6 +354,9 @@ def internal_metrics(dict_cluster, W_matrices):
             # Connected Components
             int_metrics[l][method]['CC'] = nx.number_connected_components(G)
 
+            # N cluster
+            int_metrics[l][method]['nCluster'] = len(partition)
+
     return int_metrics
 
 
@@ -369,65 +374,73 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
     # colors show the clusters
     # intensity of color shows amount of money within this account (node weight)
 
-    widget_dict = {}
-
-    for l, X in W_matrices.items():
-        # Create a graph from matrix X
-        G = nx.from_numpy_array(X)
-
-        # Extract clustering associated to matrix X with l=rho
-        partition = dict_partition[l]
+    widget_dict = {
+        rho: {
+            'louvain' : {},
+            'dbscan' : {},
+            'spectral' : {}
+        } for rho in W_matrices.keys()
+    }
+    
+    for method, clustering in dict_partition.items():
         
-        # Convert partition list of sets to a node-to-community mapping
-        community_mapping = {}
-        for community_id, community_set in enumerate(partition):
-            for node in community_set:
-                community_mapping[node] = str(community_id)
+        for l, X in W_matrices.items():
+            # Create a graph from matrix X
+            G = nx.from_numpy_array(X)
 
-        # Sets node attributes from a given value or dictionary of values.
-        nx.set_node_attributes(G, community_mapping, 'community')
+            # Extract clustering associated to matrix X with l=rho and method 
+            partition = clustering[l]
+            
+            # Convert partition list of sets to a node-to-community mapping
+            community_mapping = {}
+            for community_id, community_set in enumerate(partition):
+                for node in community_set:
+                    community_mapping[node] = str(community_id)
 
-        # Nodes: build dataframe from node attributes
-        nodes_data = []
-        for node, data in G.nodes(data=True):
-            nodes_data.append({
-                'id': node,
-                'label': str(node),
-                'community': data.get('community'),
-                'color': data.get('color'),
-                'degree': G.degree[node] # how many non zero entries there are for a node X
-            })
-        points = pd.DataFrame(nodes_data)
+            # Sets node attributes from a given value or dictionary of values.
+            nx.set_node_attributes(G, community_mapping, 'community')
 
-        points = pd.DataFrame(nodes_data)
-        points['community'] = points['community'].astype('category')
+            # Nodes: build dataframe from node attributes
+            nodes_data = []
+            for node, data in G.nodes(data=True):
+                nodes_data.append({
+                    'id': node,
+                    'label': str(node),
+                    'community': data.get('community'),
+                    'color': data.get('color'),
+                    'degree': G.degree[node] # how many non zero entries there are for a node X
+                })
+            points = pd.DataFrame(nodes_data)
 
-        # Edges: extract links with weights
-        links_data = []
-        for u, v, d in G.edges(data=True):
-            links_data.append({
-                'source': u,
-                'target': v,
-                'weight': d.get('weight', 1.0)
-            })
-        links = pd.DataFrame(links_data)
-        links['weight'] = links['weight'].abs()  # only positive thickness
-        links['weight'] = links['weight'] * 10  # only positive thickness
+            points = pd.DataFrame(nodes_data)
+            points['community'] = points['community'].astype('category')
 
-        widget = cosmo(
-            points=points,
-            links=links,
-            point_id_by='id',
-            link_source_by='source',
-            link_target_by='target',
-            link_width_by='weight', # width of an edge given by weight = value in X between i and j
-            link_color_by='community',
-            point_color_by='community',
-            point_label_by='label', # or community
-            point_size_by='degree'        
-        )
+            # Edges: extract links with weights
+            links_data = []
+            for u, v, d in G.edges(data=True):
+                links_data.append({
+                    'source': u,
+                    'target': v,
+                    'weight': d.get('weight', 1.0)
+                })
+            links = pd.DataFrame(links_data)
+            links['weight'] = links['weight'].abs()  # only positive thickness
+            links['weight'] = links['weight'] * 10  # only positive thickness
 
-        widget_dict[l] = widget
+            widget = cosmo(
+                points=points,
+                links=links,
+                point_id_by='id',
+                link_source_by='source',
+                link_target_by='target',
+                link_width_by='weight', # width of an edge given by weight = value in X between i and j
+                link_color_by='community',
+                point_color_by='community',
+                point_label_by='label', # or community
+                point_size_by='degree'        
+            )
+
+            widget_dict[l][method] = widget
     
         # Show with NX
 
