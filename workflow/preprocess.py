@@ -78,6 +78,7 @@ def PaySim_preprocessing(dimension):
     dataset_path = f"datasets/paysim/{dimension}"
 
     transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
+    # transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
 
     balances = {}
 
