@@ -47,9 +47,9 @@ def load_dataset():
             continue
 
     if name == 'AMLSIM':
-        df = AMLSim_preprocessing(dimension)
+        df, account_prop = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
-        df = PaySim_preprocessing(dimension)
+        df, account_prop = PaySim_preprocessing(dimension)
     elif name == 'LIBRE':
         # future implementation
         df = None
@@ -57,7 +57,7 @@ def load_dataset():
     else:
         df = None
 
-    return df, name, dimension
+    return df, name, dimension, account_prop
 
 
 def extract_timeseries(df, name):
@@ -122,23 +122,22 @@ def adjaceny_matrix(Y_norm, name, dimension):
         transactions = pd.read_csv(f'datasets/paysim/{dimension}/rawLog.csv')
         orig = "nameOrig"
         dest = "nameDest"
-        amnt = "amount"
-
-        users_list = []
-
-        for _, row in transactions.iterrows():
-            if row[orig] not in users_list:
-                users_list.append(row[orig])
-            if row[dest] not in users_list:
-                users_list.append(row[dest])
-
-        id_to_int = {user_id: idx for idx, user_id in enumerate(users_list)}       
+        amnt = "amount"      
 
     elif name == 'LIBRA':
         transactions = pd.read_csv(f'datasets/libra/realdata/libra_380K.csv')
         orig = "id_source"
         dest = "id_destination"
         amnt = "cum_amount"
+
+    users_list = []
+    for _, row in transactions.iterrows():
+        if row[orig] not in users_list:
+            users_list.append(row[orig])
+        if row[dest] not in users_list:
+            users_list.append(row[dest])
+
+    id_to_int = {user_id: idx for idx, user_id in enumerate(users_list)} 
 
     rows = len(Y_norm)
 
@@ -256,7 +255,7 @@ def clustering(W_matrices):
         dict_cluster['louvain'][rho] = partition
 
         # DBSCAN
-        dbscan = DBSCAN(eps=0.2, min_samples=2)
+        dbscan = DBSCAN(eps=0.5, min_samples=5)
         labels_dbscan = dbscan.fit_predict(np.asarray(X))
 
         # Convert labels to list of sets
@@ -265,23 +264,30 @@ def clustering(W_matrices):
 
 
         # Spectral Clustering
+
+        # Try with different n cluster and evaluate w/ siluette score
         # Define a range of number of clusters
-        cluster_range = range(2, 11)
-        sil_scores = []
-        cluster_labels = {}
+        # cluster_range = range(2, 11)
+        # sil_scores = []
+        # cluster_labels = {}
 
-        for n in cluster_range:
-            clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
-            labels = clustering.fit_predict(np.asarray(X))
+        # for n in cluster_range:
+        #     clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
+        #     labels = clustering.fit_predict(np.asarray(X))
 
-            # Compute the Silhouette Score
-            score = silhouette_score(np.asarray(X), labels, metric='precomputed')
-            sil_scores.append(score)
-            cluster_labels[n] = labels
+        #     # Compute the Silhouette Score
+        #     score = silhouette_score(np.asarray(X), labels, metric='precomputed')
+        #     sil_scores.append(score)
+        #     cluster_labels[n] = labels
 
-        # Automatically choose the best number of clusters
-        best_n_clusters = cluster_range[np.argmax(sil_scores)]
-        labels_spectral = cluster_labels[best_n_clusters]
+        # # Automatically choose the best number of clusters
+        # best_n_clusters = cluster_range[np.argmax(sil_scores)]
+        # labels_spectral = cluster_labels[best_n_clusters]
+
+        # Use n_cluster = len(partitionin louvain)
+        clustering = SpectralClustering(n_clusters=len(dict_cluster['louvain'][rho]), affinity='precomputed', assign_labels='cluster_qr')
+        labels_spectral = clustering.fit_predict(np.asarray(X))
+
         # Convert labels to list of sets
         partition_spectral = labels_to_partition(labels_spectral)
 
@@ -424,22 +430,32 @@ def extract_results(metrics):
     return lists_dict
     
 
-def plot_results(metrics, ylabel, results):
+def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbscan']):
     # Create the plot
     plt.figure(figsize=(6, 6))
 
-    plt.plot(results['rho_values'], results[f'louvain_{metrics}'], 'o-', label='Louvain', color='steelblue')
-    plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color='gold')
-    plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color='indianred')
+    colors = ['steelblue', 'gold', 'indianred']
+    dot = ['o-', 's-', '^-']
+
+    if methods == ['louvain', 'spectral']:
+        for i, method in enumerate(methods): 
+            plt.plot(results['rho_values'], results[f'{method}_{metrics}'], dot[i], label=f'{method}', color=colors[i])
+        
+        plt.yscale('log')
+    
+    else:
+        plt.plot(results['rho_values'], results[f'louvain_{metrics}'], 'o-', label='Louvain', color=colors[0])
+        plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color=colors[1])
+        plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color=colors[2])
 
     plt.xlabel('Reg. Parameter (λ)')
     plt.ylabel(ylabel)
     plt.xscale('log')
     plt.legend()
     plt.show()
-    
 
-def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
+
+def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimension):
     # colors show the clusters
     # intensity of color shows amount of money within this account (node weight)
 
@@ -469,15 +485,34 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
             # Sets node attributes from a given value or dictionary of values.
             nx.set_node_attributes(G, community_mapping, 'community')
 
+            fraud_mapping = {}
+            for node in G.nodes():
+                # Check if the node exists in account_prop
+                if node in account_prop:
+                    fraud_mapping[node] = account_prop[node]['fraud']
+                else:
+                    # Default value if node not found in account_prop
+                    fraud_mapping[node] = False
+            
+            # Set fraud attributes for all nodes
+            nx.set_node_attributes(G, fraud_mapping, 'fraud')
+
             # Nodes: build dataframe from node attributes
             nodes_data = []
             for node, data in G.nodes(data=True):
+                is_fraud = data.get('fraud', False)
+
+                # Create conditional label - only show label if fraudulent
+                label = str(node) if is_fraud else ""
+
                 nodes_data.append({
                     'id': node,
-                    'label': str(node),
+                    #'label': str(node),
+                    'label' : label,
                     'community': data.get('community'),
                     'color': data.get('color'),
-                    'degree': G.degree[node] # how many non zero entries there are for a node X
+                    'degree': G.degree[node], # how many non zero entries there are for a node X
+                    'fraud' : is_fraud
                 })
             points = pd.DataFrame(nodes_data)
 
@@ -499,13 +534,13 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
             widget = cosmo(
                 points=points,
                 links=links,
-                point_id_by='id',
+                # point_id_by='id',
                 link_source_by='source',
                 link_target_by='target',
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
                 # link_color_by='community',
                 point_color_by='community',
-                point_label_by='label', # or community
+                point_label_by='fraud', # or community
                 point_size_by='degree'        
             )
 

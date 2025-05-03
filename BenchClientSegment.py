@@ -3,7 +3,7 @@ from workflow.internal import *
 
 if __name__ == '__main__':
     # Load dataset (the user will pass the name)
-    df, name, dimension = load_dataset()
+    df, name, dimension, account_prop = load_dataset()
 
     # Extract time series
     extract_timeseries(df)
@@ -25,4 +25,4 @@ if __name__ == '__main__':
     visualize_metrics(int_metrics)
 
     # Visualise with cosmograph
-    # visualize_graph(W_matrices, dict_cluster, name, dimension)
+    # visualize_graph(W_matrices, dict_cluster, account_prop, name, dimension)

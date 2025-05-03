@@ -1,6 +1,8 @@
 import pandas as pd
 
 def AMLSim_preprocessing(dimension):
+    account_prop = {}
+
     dataset_path = f"datasets/AMLSim/{dimension}"
 
     accounts = pd.read_csv(f'{dataset_path}/accounts.csv')
@@ -12,6 +14,18 @@ def AMLSim_preprocessing(dimension):
     # Take users data from account.csv
     for _, row in accounts.iterrows():
         acc_id = row["ACCOUNT_ID"] # User id
+        fraud = row['IS_FRAUD']
+
+        # Initialize the nested dictionary for this account ID
+        account_prop[acc_id] = {
+            "original_id": acc_id,
+            "fraud": False  # Default value
+        }
+
+        # Check if the account is fraudulent and update accordingly
+        if fraud == 'true':
+            account_prop[acc_id]['fraud'] = True
+
         open_date = 0
         initial_balance = round(float(row["INIT_BALANCE"]), 2)
 
@@ -71,27 +85,53 @@ def AMLSim_preprocessing(dimension):
     for col in df.columns:
         df[col] = df[col].apply(lambda x: x['balance'] if isinstance(x, dict) else x)
 
-    return df
+    return df, account_prop
 
 
 def PaySim_preprocessing(dimension):
-    dataset_path = f"datasets/paysim/{dimension}"
 
-    transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
-    # transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
+    account_prop = {}
+
+    #dataset_path = f"datasets/paysim/{dimension}"
+
+    #transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
+    transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
 
     balances = {}
+    fraud_account = set()
+    users_list = []
 
     for _, row in transactions.iterrows():
+        origin = row['nameOrig']
+        destination = row['nameDest']
+        fraud = row['isFraud']
+
+        if origin not in users_list:
+            users_list.append(origin)
+        if row['nameDest'] not in users_list:
+            users_list.append(destination)
+
+        if fraud == '1':
+            fraud_account.add(origin)
+            fraud_account.add(destination)
+
         # Track origin account
-        if row['nameOrig'] not in balances:
-            balances[row['nameOrig']] = {}
-        balances[row['nameOrig']][row['step']] = row['newBalanceOrig']
+        if origin not in balances:
+            balances[origin] = {}
+        balances[origin][row['step']] = row['newBalanceOrig']
 
         # Track destination account
-        if row['nameDest'] not in balances:
-            balances[row['nameDest']] = {}
-        balances[row['nameDest']][row['step']] = row['newBalanceDest']
+        if destination not in balances:
+            balances[destination] = {}
+        balances[destination][row['step']] = row['newBalanceDest']
+
+    account_prop = {}
+
+    for i, user in enumerate(users_list):
+        account_prop[i] = {
+            "original_id": user,  # Using assignment operator = not ==
+            "fraud": user in fraud_account 
+        }
 
     # Create DataFrame
     df = pd.DataFrame.from_dict(balances, orient='index').T
@@ -102,5 +142,5 @@ def PaySim_preprocessing(dimension):
     # Reindex to include all steps, then forward fill
     df = df.reindex(full_range).ffill().bfill()
 
-    return df
+    return df, account_prop
 
