@@ -380,6 +380,63 @@ def visualize_metrics(metrics):
             print(f"    {method} : {res}")
         print("\n")
     return
+
+
+def extract_results(metrics):
+    # Initialize the rho_values list and dictionaries for each algorithm and metric
+    rho_values = list(metrics.keys())
+    
+    # Initialize empty lists for each algorithm and metric
+    lists_dict = {
+        'rho_values': rho_values,
+        'louvain_ncut': [],
+        'dbscan_ncut': [],
+        'spectral_ncut': [],
+        'louvain_rcut': [],
+        'dbscan_rcut': [],
+        'spectral_rcut': [],
+        'louvain_modularity': [],
+        'dbscan_modularity': [],
+        'spectral_modularity': [],
+        'louvain_CC': [],
+        'dbscan_CC': [],
+        'spectral_CC': [],
+        'louvain_nCluster': [],
+        'dbscan_nCluster': [],
+        'spectral_nCluster': []
+    }
+    
+    # Extract values for each rho value
+    for rho in rho_values:
+        for algorithm in ['louvain', 'dbscan', 'spectral']:
+            if algorithm in metrics[rho]:
+                result = metrics[rho][algorithm]
+                for metric in ['ncut', 'rcut', 'modularity', 'CC', 'nCluster']:
+                    if metric in result:
+                        lists_dict[f'{algorithm}_{metric}'].append(result[metric])
+                    else:
+                        lists_dict[f'{algorithm}_{metric}'].append(None)  # Handle missing metrics
+            else:
+                # Handle case where an algorithm is missing for a rho value
+                for metric in ['ncut', 'rcut', 'modularity', 'CC', 'nCluster']:
+                    lists_dict[f'{algorithm}_{metric}'].append(None)
+    
+    return lists_dict
+    
+
+def plot_results(metrics, ylabel, results):
+    # Create the plot
+    plt.figure(figsize=(6, 6))
+
+    plt.plot(results['rho_values'], results[f'louvain_{metrics}'], 'o-', label='Louvain', color='steelblue')
+    plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color='gold')
+    plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color='indianred')
+
+    plt.xlabel('Reg. Parameter (λ)')
+    plt.ylabel(ylabel)
+    plt.xscale('log')
+    plt.legend()
+    plt.show()
     
 
 def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
@@ -446,7 +503,7 @@ def visualize_graph(W_matrices, dict_partition, ds_name, ds_dimension):
                 link_source_by='source',
                 link_target_by='target',
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
-                link_color_by='community',
+                # link_color_by='community',
                 point_color_by='community',
                 point_label_by='label', # or community
                 point_size_by='degree'        
