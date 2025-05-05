@@ -15,6 +15,9 @@ from sklearn.metrics import silhouette_score
 
 from cosmograph import cosmo
 
+from sklearn.metrics import silhouette_score
+from tqdm import tqdm
+
 
 def parse_input(user_input):
     """Parse and validate the dataset input in the format NAME_DIMENSION."""
@@ -254,8 +257,39 @@ def clustering(W_matrices):
         # print(f"Number of cluster for rho {rho} is {len(partition)}")
         dict_cluster['louvain'][rho] = partition
 
+
+        # DBSCAN with multiple params
+        best_score = float('inf')
+        best_params = None
+        best_labels = None
+
+        eps_range = np.linspace(0.1, 2.0, 20)
+        min_samples_range = range(3, 10)
+
+        eps_range = np.linspace(0.1, 2.0, 20)
+        min_samples_range = range(3, 10)
+
+        for eps in tqdm(eps_range):
+            for min_samples in min_samples_range:
+                dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+                labels = dbscan.fit_predict(np.asarray(X))
+                
+                # Ignore if all points are noise (-1) or single cluster
+                if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                    continue
+
+                partition = labels_to_partition(labels)
+
+                diff = abs(len(partition) - len(dict_cluster['louvain'][rho]))
+                if diff < best_score:
+                    best_score = diff
+                    best_params = (eps, min_samples)
+
+        print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
+        print(f"Best difference in number of clusters: {best_score:.4f}")
+
         # DBSCAN
-        dbscan = DBSCAN(eps=0.5, min_samples=5)
+        dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1])
         labels_dbscan = dbscan.fit_predict(np.asarray(X))
 
         # Convert labels to list of sets
@@ -324,22 +358,8 @@ def internal_metrics(dict_cluster, W_matrices):
                 for node in comm:
                     node_to_community[node] = idx
 
-            # labels = [node_to_community[n] for n in range(len(node_to_community))] # print the label of where every node is
-
-            # unique_labels = np.unique(labels)
-
             n_cut = 0
             r_cut = 0
-            
-            # for cluster in unique_labels:
-            #     mask = (labels == cluster)
-            #     not_mask = ~mask
-            #     cut = X[mask][:, not_mask].sum()
-            #     vol = X[mask].sum()
-            #     assoc = X[mask][:, mask].sum()
-                
-            #     n_cut += cut / (vol + 1e-10)  # Avoid division by zero
-            #     r_cut += cut / (mask.sum() + 1e-10)  # Normalize by cluster size
 
             clusters = set(node_to_community.values()) # set of clusters
 
@@ -568,7 +588,8 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
                 # link_color_by='community',
                 point_color_by='community',
-                point_label_by='fraud', # or fraud
+                point_label_by='fraud',
+                # point_label_by='id',
                 point_size_by='degree', #'degree
                 point_color_strategy='map',
                 point_color_by_map=color_list,
