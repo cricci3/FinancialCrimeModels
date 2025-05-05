@@ -285,11 +285,18 @@ def clustering(W_matrices):
                     best_score = diff
                     best_params = (eps, min_samples)
 
-        print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
+        if best_params is not None:
+            print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
+            print(f"Best difference in number of clusters: {best_score:.4f}")
+        else:
+            print("No suitable DBSCAN parameters found!")
         print(f"Best difference in number of clusters: {best_score:.4f}")
 
         # DBSCAN
-        dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1])
+        if best_params is not None:
+            dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1])
+        else:
+            dbscan = DBSCAN()
         labels_dbscan = dbscan.fit_predict(np.asarray(X))
 
         # Convert labels to list of sets
