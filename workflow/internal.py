@@ -161,8 +161,8 @@ def adjaceny_matrix(Y_norm, name, dimension):
     sns.heatmap(matrix, cmap='YlGnBu', fmt=".2f", cbar=True, mask=mask,
                 linewidths=0.5, linecolor='white')
 
-    plt.xlabel("Receiver Account")
-    plt.ylabel("Sender Account")
+    plt.xlabel("Receiver Account", fontsize=22)
+    plt.ylabel("Sender Account", fontsize=22)
     plt.show()
 
     return matrix
@@ -448,9 +448,12 @@ def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbsc
         plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color=colors[1])
         plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color=colors[2])
 
-    plt.xlabel('Reg. Parameter (λ)')
-    plt.ylabel(ylabel)
+    plt.xlabel('Reg. Parameter (λ)', fontsize=22)
+    plt.ylabel(ylabel, fontsize=22)
     plt.xscale('log')
+
+    plt.tick_params(axis='x', labelsize=22)
+    plt.tick_params(axis='y', labelsize=22)
     plt.legend()
     plt.show()
 
@@ -489,6 +492,7 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
             for node in G.nodes():
                 # Check if the node exists in account_prop
                 if node in account_prop:
+                    # print(f"node : {node} in account_prop -> fraud : {account_prop[node]['fraud']}")
                     fraud_mapping[node] = account_prop[node]['fraud']
                 else:
                     # Default value if node not found in account_prop
@@ -499,24 +503,30 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
 
             # Nodes: build dataframe from node attributes
             nodes_data = []
+
+            fraudolent = []
+
             for node, data in G.nodes(data=True):
                 is_fraud = data.get('fraud', False)
 
-                # Create conditional label - only show label if fraudulent
+                # Create conditional label - only show label ID if fraudulent
                 label = str(node) if is_fraud else ""
+
+                if is_fraud:
+                    fraudolent.append(str(node))
 
                 nodes_data.append({
                     'id': node,
-                    #'label': str(node),
+                    # 'label': str(node),
                     'label' : label,
                     'community': data.get('community'),
                     'color': data.get('color'),
-                    'degree': G.degree[node], # how many non zero entries there are for a node X
-                    'fraud' : is_fraud
+                    'degree': G.degree[node],
+                    'fraud' : is_fraud,
                 })
+            
             points = pd.DataFrame(nodes_data)
 
-            points = pd.DataFrame(nodes_data)
             points['community'] = points['community'].astype('category')
 
             # Edges: extract links with weights
@@ -531,63 +541,41 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
             links['weight'] = links['weight'].abs()  # only positive thickness
             links['weight'] = links['weight'] * 10  # only positive thickness
 
+            color_list = [
+                ["0", "#4682B4"],  # Steelblue
+                ["1", "#FF9999"],  # Red/Pink
+                ["2", "#4169E1"],  # Royal Blue
+                ["3", "#FFD700"],  # Yellow
+                ["4", "#FFCC99"],  # Orange
+                ["5", "#CCFFE5"],  # Light blue
+                ["6", "#FFFF99"],  # Yellow
+                ["7", "#CCFF99"],  # Lime
+                ["8", "#CCFFFF"],  # Cyan
+                ["9", "#CCCCFF"],  # Lilla
+                ["10", "#E9967A"],  # Dark Salmon
+                ["11", "#E5CCFF"],  # Dark Lilla
+                ["12", "#DC143C"], # Crimson Red
+                ["13", "#FFFFFF"], # White
+                ["14", "#F0FFF0"],  # Honeydew,
+            ]
+
             widget = cosmo(
                 points=points,
                 links=links,
-                # point_id_by='id',
+                point_id_by='id', # id
                 link_source_by='source',
                 link_target_by='target',
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
                 # link_color_by='community',
                 point_color_by='community',
-                point_label_by='fraud', # or community
-                point_size_by='degree'        
+                point_label_by='fraud', # or fraud
+                point_size_by='degree', #'degree
+                point_color_strategy='map',
+                point_color_by_map=color_list,
+                # background_color='#FFFFFF',
+                show_labels_for=fraudolent
             )
 
             widget_dict[l][method] = widget
     
-        # Show with NX
-
-        # Map community labels to integers for coloring
-        # unique_communities = list(points['community'].unique())
-        # community_to_int = {community: idx for idx, community in enumerate(unique_communities)}
-        # node_colors = points['community'].map(community_to_int)
-
-        # # Normalize colors for colormap
-        # cmap = cm.get_cmap('tab10', len(unique_communities))
-
-        # # Define node sizes (scaled degree)
-        # node_sizes = points['degree'] * 100  # or change the multiplier for bigger/smaller nodes
-
-        # # Generate layout
-        # pos = nx.spring_layout(G, seed=42)  # spring layout works well for general-purpose
-
-        # # Create the figure
-        # plt.figure(figsize=(12, 9))
-
-        # # Draw nodes with color and size
-        # nx.draw_networkx_nodes(
-        #     G, pos,
-        #     node_color=node_colors,
-        #     node_size=node_sizes,
-        #     cmap=cmap,
-        #     alpha=0.9
-        # )
-
-        # # Draw edges
-        # nx.draw_networkx_edges(G, pos, alpha=0.4)
-
-        # # Draw labels (optional)
-        # nx.draw_networkx_labels(G, pos, font_size=10)
-
-        # # Add legend
-        # for community, idx in community_to_int.items():
-        #     plt.scatter([], [], c=[cmap(idx)], label=str(community), s=100)
-        # plt.legend(scatterpoints=1, frameon=False, labelspacing=1, title="Community")
-
-        # plt.title(f"Graph for rho = {l}", fontsize=14)
-        # plt.axis('off')
-        # plt.tight_layout()
-        # plt.show()
-
     return widget_dict
