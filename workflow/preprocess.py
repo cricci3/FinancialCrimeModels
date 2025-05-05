@@ -23,7 +23,7 @@ def AMLSim_preprocessing(dimension):
         }
 
         # Check if the account is fraudulent and update accordingly
-        if fraud == 'true':
+        if fraud == 'True' or fraud == True:
             account_prop[acc_id]['fraud'] = True
 
         open_date = 0
@@ -111,7 +111,7 @@ def PaySim_preprocessing(dimension):
         if row['nameDest'] not in users_list:
             users_list.append(destination)
 
-        if fraud == '1':
+        if fraud == '1' or fraud == 1:
             fraud_account.add(origin)
             fraud_account.add(destination)
 
