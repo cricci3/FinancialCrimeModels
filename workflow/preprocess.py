@@ -5,8 +5,21 @@ def AMLSim_preprocessing(dimension):
 
     dataset_path = f"datasets/AMLSim/{dimension}"
 
-    accounts = pd.read_csv(f'{dataset_path}/accounts.csv')
-    transactions = pd.read_csv(f'{dataset_path}/transactions.csv')
+    large_datasets = ['10K', '100K', '1M']
+
+    if dimension in large_datasets:
+        if dimension == '10K':
+            chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
+            chunk_trns = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
+        else:
+            chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=10000)
+            chunk_trns = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=10000)
+
+        accounts = pd.concat(chunk_acc)
+        transactions = pd.concat(chunk_trns)
+    else:
+        accounts = pd.read_csv(f'{dataset_path}/accounts.csv')
+        transactions = pd.read_csv(f'{dataset_path}/transactions.csv')
 
     # Create root
     balances = {}
@@ -92,10 +105,16 @@ def PaySim_preprocessing(dimension):
 
     account_prop = {}
 
-    #dataset_path = f"datasets/paysim/{dimension}"
+    dataset_path = f"datasets/paysim/{dimension}"
 
-    #transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
-    transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
+    large_datasets = ['10K', '100K', '1M']
+
+    if dimension in large_datasets:
+        chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=10000)
+        transactions  = pd.concat(chunk)
+    else:
+        transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
+        #transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
 
     balances = {}
     fraud_account = set()
