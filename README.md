@@ -42,13 +42,13 @@
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
 4. **Run the Program**  
-    Execute either `BenchClientSegment.py` or `BenchClientSegment_labels.py` depending on your needs.
+    Execute either `BenchClientSegment.py` (`notebook.ipynb` if you want to visualize the graph with Cosmograph) or `BenchClientSegment_labels.py` depending on your needs.
 
-5. **Input the Dataset Name**  
+6. **Input the Dataset Name**  
     When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
 
 
-6. **View Results**  
+7. **View Results**  
     Once the program runs, it will output results in the following format:
     ```
     For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
