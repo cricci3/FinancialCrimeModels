@@ -3,9 +3,10 @@
 ## How to Run
 
 0. **Install SQUIC**
+   
     Follow the [SQUIC User Manual](https://www.gitlab.ci.inf.usi.ch/SQUIC/gitlab-profile/-/blob/main/SQUIC_User_Manual.pdf) to install SQUIC Library.
 
-1. **Install all required dependencies**
+2. **Install all required dependencies**
     
     Python 3.10 or higher is required, then install all required dependencies with:
 
@@ -13,10 +14,10 @@
     pip install -r requirements.txt
     ```
 
-2. **Download the Dataset**  
+3. **Download the Dataset**  
    Use the links provided in [**Data Sources**](README.md#data-sources) section to download the datasets.
 
-3. **Setup the Folder Structure**  
+4. **Setup the Folder Structure**  
    In the root directory of the project, create a folder named `Datasets` with the following structure:
 
     ```
@@ -41,7 +42,7 @@
 
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
-4. **Run the Program**  
+5. **Run the Program**  
     Execute either `BenchClientSegment.py` (`notebook.ipynb` if you want to visualize the graph with Cosmograph) or `BenchClientSegment_labels.py` depending on your needs.
 
 6. **Input the Dataset Name**  
