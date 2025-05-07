@@ -27,17 +27,17 @@
     |_ ...
     |_ Datasets
         |_ AMLSim
-            |_ 100 (with inside the csv files)
-            |_ 1K (with inside the csv files)
-            |_ 10K (with inside the csv files)
-            |_ 100K (with inside the csv files)
-            |_ 1M (with inside the csv files)
+            |_ 100 users (with inside the csv files)
+            |_ 1K users (with inside the csv files)
+            |_ 10K users (with inside the csv files)
+            |_ 100K users (with inside the csv files)
+            |_ 1M users (with inside the csv files)
         |_ PaySim
-            |_ 100 (with inside the csv files)
-            |_ 1K (with inside the csv files)
-            |_ 10K (with inside the csv files)
-            |_ 100K (with inside the csv files)
-            |_ 1M (with inside the csv files)
+            |_ 100 users (with inside the csv files)
+            |_ 1K users (with inside the csv files)
+            |_ 10K users (with inside the csv files)
+            |_ 100K users (with inside the csv files)
+            |_ 1M users (with inside the csv files)
     ```
 
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
