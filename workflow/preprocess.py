@@ -1,9 +1,10 @@
 import pandas as pd
 
+
 def AMLSim_preprocessing(dimension):
     account_prop = {}
 
-    dataset_path = f"datasets/AMLSim/{dimension}"
+    dataset_path = f"datasets/AMLSim/{dimension} users"
 
     large_datasets = ['10K', '100K', '1M']
 
@@ -105,7 +106,7 @@ def PaySim_preprocessing(dimension):
 
     account_prop = {}
 
-    dataset_path = f"datasets/paysim/{dimension}"
+    dataset_path = f"datasets/paysim/{dimension} users"
 
     large_datasets = ['10K', '100K', '1M']
 
@@ -114,7 +115,7 @@ def PaySim_preprocessing(dimension):
         transactions  = pd.concat(chunk)
     else:
         transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
-        #transactions = pd.read_csv('playground/squic_folder/paysim100.csv')
+        #transactions = pd.read_csv('playground/squic_folder/paysim100-modified.csv')
 
     balances = {}
     fraud_account = set()
@@ -148,8 +149,9 @@ def PaySim_preprocessing(dimension):
 
     for i, user in enumerate(users_list):
         account_prop[i] = {
-            "original_id": user,  # Using assignment operator = not ==
-            "fraud": user in fraud_account 
+            "original_id": user,
+            "fraud": user in fraud_account,
+            "class": str(user)[0] # Class could be C, M or B
         }
 
     # Create DataFrame
