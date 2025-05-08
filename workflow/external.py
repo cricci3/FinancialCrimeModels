@@ -1,8 +1,10 @@
 import json
+import numpy as np
 from workflow.preprocess import PaySim_preprocessing
 from workflow.SQUIC_functions import *
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, normalized_mutual_info_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 
 def parse_input(user_input):
@@ -22,10 +24,11 @@ def parse_input(user_input):
 
     return name, dimension
 
+
 def load_dataset():
     """Prompt user input and load the corresponding dataset."""
     while True:
-        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., PAYSIM_10K): ")
 
         try:
             name, dimension = parse_input(user_input)
@@ -35,9 +38,9 @@ def load_dataset():
             continue
 
     if name == 'PAYSIM':
-        df = PaySim_preprocessing(dimension)
+        df, account_prop = PaySim_preprocessing(dimension)
 
-    return df, name, dimension
+    return df, name, dimension, account_prop
 
 
 def squic_computation(Y_norm, name, dimension, printMatrix=False):
@@ -88,43 +91,85 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
     return theta_dict, table_norm
 
 
-def lda(Theta_matrices, df):
-    X_df = df.T
+def linear_DA(data_train, labels_train, data_test, labels_test, Theta):
+    n_train = labels_train.shape[0]
+    n_test = labels_test.shape[0]
+    K = np.max(labels_train)  # Assuming labels are 1-based (like in R)
 
-    y = X_df.index.str.startswith('C').astype(int)  # 1 for C‑columns, 0 for M‑columns
+    rho = np.zeros((n_test, K))
 
-    # Class means (p×1)
-    mu_M = X_df[y == 0].mean(axis=0).to_numpy()
-    mu_C = X_df[y == 1].mean(axis=0).to_numpy()
-    mean_diff = (mu_C - mu_M).reshape(-1, 1)
-    
-    dict_scores = {}
-
-    for l, Theta in Theta_matrices.items():
-        print(Theta.shape)
-        # LDA weight vector
-        w = Theta @ mean_diff
-        w /= np.linalg.norm(w)
-
-        # Project samples
-        scores = X_df.values @ w
-
-        dict_scores[l] = scores
-    
-    return dict_scores, y
-
-
-def external_metrics(dict_scores, y):
-    ext_metrics_dict = {}
-
-    for l, score in dict_scores.items():
-        threshold = 0.0  # classic LDA uses 0; tune on validation if needed
-        y_pred = (score > threshold).astype(int)
-
-        f1 = f1_score(y, y_pred, pos_label=1)
-        ext_metrics_dict[l] = f1
-
-    return ext_metrics_dict
-
+    for k in range(1, K+1):
+        # prior probability for class k
+        prior = np.sum(labels_train == k) / n_train
         
+        # sample mean for class k
+        mu_k = np.mean(data_train[:, labels_train == k], axis=1)  # mean along samples
+        mu_matrix = np.tile(mu_k[:, np.newaxis], (1, n_test))
 
+        # adjusted data
+        adjusted_data = data_test - 0.5 * mu_matrix
+
+        # lda score
+        lda_score = np.einsum('ij,ji->i', adjusted_data.T, Theta @ mu_matrix) + np.log(prior)
+        rho[:, k-1] = lda_score
+
+    predicted = np.argmax(rho, axis=1) + 1  # +1 because labels start from 1 in R
+
+    f1 = f1_score(labels_test, predicted, average='macro')  # macro = average across classes
+    nmi = normalized_mutual_info_score(labels_test, predicted)
+
+    # print(f"F1 Score = {f1:.4f}")
+    # print(f"NMI = {nmi:.4f}")
+
+    results_lda = {
+        "f1": round(f1, 2),
+        "nmi": round(nmi, 2),
+    }
+
+    return results_lda
+
+
+def prepare_LDA(Theta_mtrx, account_prop):
+    ext_metrics = {}
+
+    labels = []
+    for user in account_prop.items():
+        if user[-1]['class'] == 'B':
+            labels.append('C') # If user is B -> act like it is C (most similar class)
+        else:
+            labels.append(user[-1]['class']) # class can be C, M and B
+
+    # Convert to array
+    labels = np.array(labels)
+    le = LabelEncoder()
+    
+    labels_encoded = le.fit_transform(labels) + 1  # from C, M, B to classes 1, 2, 3
+
+    for rho, Theta in Theta_mtrx.items():
+        ext_metrics[rho] = {}
+        user_features = Theta.toarray()
+
+        # Split into train/test
+        data_train, data_test, labels_train, labels_test = train_test_split(
+            user_features,
+            labels_encoded,
+            test_size=0.3,
+            random_state=42,
+            stratify=labels_encoded
+        )
+
+        # Transpose because LDA expects (features x samples)
+        data_train = data_train.T  # (features x n_train_samples)
+        data_test = data_test.T  
+
+        ext_metrics[rho] = linear_DA(data_train, labels_train, data_test, labels_test, Theta)
+    
+    return ext_metrics
+
+
+def external_metrics(ext_scores):
+    for rho, scores in ext_scores.items():
+        print(f"For lambda : {rho}")
+        for metric, score in scores.items():
+            print(f"    {metric} : {score}")
+        print("\n")
