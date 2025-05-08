@@ -116,13 +116,13 @@ def normalization(df, name):
 def adjaceny_matrix(Y_norm, name, dimension):
 
     if name == 'AMLSIM':
-        transactions = pd.read_csv(f'datasets/AMLSim/{dimension}/transactions.csv')
+        transactions = pd.read_csv(f'datasets/AMLSim/{dimension} users/transactions.csv')
         orig = "SENDER_ACCOUNT_ID"
         dest = "RECEIVER_ACCOUNT_ID"
         amnt = "TX_AMOUNT"
 
     elif name == 'PAYSIM':
-        transactions = pd.read_csv(f'datasets/paysim/{dimension}/rawLog.csv')
+        transactions = pd.read_csv(f'datasets/paysim/{dimension} users/rawLog.csv')
         orig = "nameOrig"
         dest = "nameDest"
         amnt = "amount"      
