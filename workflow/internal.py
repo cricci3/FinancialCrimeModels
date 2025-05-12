@@ -14,8 +14,6 @@ from sklearn.cluster import DBSCAN, SpectralClustering
 from sklearn.metrics import silhouette_score
 
 from cosmograph import cosmo
-
-from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
 
@@ -52,6 +50,7 @@ def load_dataset():
     if name == 'AMLSIM':
         df, account_prop = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
+        # account prop for paysim is different, contains "class" also the type of user: B, C, M
         df, account_prop = PaySim_preprocessing(dimension)
     elif name == 'LIBRE':
         # future implementation
@@ -485,7 +484,7 @@ def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbsc
     plt.show()
 
 
-def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimension):
+def visualize_graph_internal(W_matrices, dict_partition, account_prop):
     # colors show the clusters
     # intensity of color shows amount of money within this account (node weight)
 
@@ -517,9 +516,8 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
 
             fraud_mapping = {}
             for node in G.nodes():
-                # Check if the node exists in account_prop
+                # Check if the node exists in account_prop (must be there)
                 if node in account_prop:
-                    # print(f"node : {node} in account_prop -> fraud : {account_prop[node]['fraud']}")
                     fraud_mapping[node] = account_prop[node]['fraud']
                 else:
                     # Default value if node not found in account_prop
@@ -530,7 +528,6 @@ def visualize_graph(W_matrices, dict_partition, account_prop, ds_name, ds_dimens
 
             # Nodes: build dataframe from node attributes
             nodes_data = []
-
             fraudolent = []
 
             for node, data in G.nodes(data=True):
