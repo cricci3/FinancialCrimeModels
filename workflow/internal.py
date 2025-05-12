@@ -197,10 +197,10 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
             sparsity_pattern(W_matrices[rho])
 
         if is_symmetric(W_matrices[rho]):
-            print(f"✅ Matrix is symmetric per rho {rho}")
+            print(f" Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
-            print(f"❌ Matrix is not symmetric per rho {rho}")
+            print(f" Matrix is not symmetric per rho {rho}")
             data_sym.append("No")
 
         data_nnz.append(nnz)
