@@ -43,7 +43,7 @@
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
 5. **Run the Program**  
-    Execute either `BenchClientSegment.py` (`notebook.ipynb` if you want to visualize the graph with Cosmograph) or `BenchClientSegment_labels.py` depending on your needs.
+    Execute either `BenchClientSegment.py` (`notebook internal.ipynb` if you want to visualize the graph with Cosmograph) or `BenchClientSegment_labels.py` (`notebook external.ipynb` if you want to visualize the graph with Cosmograph) depending on your needs.
 
 6. **Input the Dataset Name**  
     When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
