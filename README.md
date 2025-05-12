@@ -97,10 +97,10 @@ Financial institutions are mandated to monitor client transactions as part of An
 
 This thesis aims to advance customer segmentation methodologies by leveraging innovative techniques in feature selection and time-series clustering. Utilizing anonymized customer and transaction data from a financial institution, this work will develop unsupervised, graph-based [2] clustering approaches to generate more accurate and meaningful customer partitions [3]. The validity of these newly derived clusters will be systematically compared against the bank’s existing segmentation framework. Additionally, correlations between the proposed clustering models and various customer attributes, including risk classifications, will be analyzed to assess their potential impact on financial crime detection.
 
-[1] J. Schmidt, D. Pasadakis, M. Sathe, and O. Schenk, “GAMLNet: a graph based framework for the detection of money laundering,” 2024 11th IEEE Swiss Conference on Data Science (SDS), Zurich, Switzerland, 2024, pp. 241-245, doi: 10.1109/SDS60720.2024.00043.
+[1] J. Schmidt, D. Pasadakis, M. Sathe, and O. Schenk, “[GAMLNet: a graph based framework for the detection of money laundering](https://ssl.lu.usi.ch/entityws/Allegati/3010824_638529309691881843.pdf)”, 2024 11th IEEE Swiss Conference on Data Science (SDS), Zurich, Switzerland, 2024, pp. 241-245, doi: 10.1109/SDS60720.2024.00043.
 
-[2] D. Pasadakis, M. Bollhöfer, and O. Schenk, “Sparse quadratic approximation for graph learning,” IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 45, no. 9, pp. 11256-11269, 1 Sept. 2023, doi: 10.1109/TPAMI.2023.3263969
+[2] D. Pasadakis, M. Bollhöfer, and O. Schenk, “[Sparse quadratic approximation for graph learning](https://www.researchgate.net/publication/367727002_Sparse_Quadratic_Approximation_for_Graph_Learning)”, IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 45, no. 9, pp. 11256-11269, 1 Sept. 2023, doi: 10.1109/TPAMI.2023.3263969
 
-[3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “Multilevel diffusion based spectral graph clustering,” in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
+[3]  M. Lechekhab, D. Pasadakis, and O. Schenk, “[Multilevel diffusion based spectral graph clustering](https://www.researchgate.net/publication/390483229_Multilevel_Diffusion_Based_Spectral_Graph_Clustering)”, in IEEE High Performance Extreme Computing Conference, 23 - 27 September 2024.
 
 
