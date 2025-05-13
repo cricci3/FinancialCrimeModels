@@ -11,10 +11,10 @@ def AMLSim_preprocessing(dimension):
     if dimension in large_datasets:
         if dimension == '10K':
             chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
-            chunk_trns = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
+            chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=1000)
         else:
             chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=10000)
-            chunk_trns = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=10000)
+            chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=10000)
 
         accounts = pd.concat(chunk_acc)
         transactions = pd.concat(chunk_trns)
