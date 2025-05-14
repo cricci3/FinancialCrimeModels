@@ -3,7 +3,8 @@ import squic
 import scipy as sp
 import numpy as np
 import time
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, lil_matrix, triu, find, isspmatrix_csr
+
 
 
 def compute_squic(Y, lambda_val):
@@ -109,29 +110,41 @@ def squic_fit_matrix(Y, l, matrix, tau=0):
     
     return X_final, end_time
 
-def squic_fit_matrix2(Y, l, matrix, tau=0):
+
+def squic_fit_matrix_sparse(Y, l, matrix, tau=0):
     start_time = time.time()
 
     M_sparse = csr_matrix(matrix)
 
-    # Step 4: Second SQUIC estimation with bias (Equation 11)
+    # Step 4: Run SQUIC (assuming `squic.run` returns a sparse matrix)
     X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
-    Theta2 = X2.todense()
+    
+    # Ensure X2 is in CSR format for efficient arithmetic
+    X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
 
-    # Step 5: Construct the final M-matrix
-    Theta_final = np.copy(Theta2)
+    # Step 5: Construct X_final as a sparse matrix (LIL format for efficient modification)
+    n = X2.shape[0]
+    X_final = lil_matrix((n, n), dtype=X2.dtype)
 
-    # Mask out values where Theta2 < -tau
-    mask = (Theta2 > -tau) & np.triu(np.ones_like(Theta2), k=1).astype(bool)
-    Theta_final[mask] = 0
+    # Copy the diagonal (since sparse matrices store diagonals efficiently)
+    diag = X2.diagonal()
+    X_final.setdiag(diag)
 
-    # Restore diagonal
-    np.fill_diagonal(Theta_final, np.diag(Theta2))
+    # Find negative off-diagonal elements < -tau (only upper triangle to avoid duplicates)
+    rows, cols, vals = find(triu(X2 < -tau, k=1))  # k=1 excludes diagonal
 
+    # Set values in X_final (symmetric update)
+    for i, j, val in zip(rows, cols, vals):
+        X_final[i, j] = X2[i, j]
+        X_final[j, i] = X2[j, i]
+
+    # Convert back to CSR for efficient storage/operations
+    X_final = X_final.tocsr()
+    
     end_time = round(time.time() - start_time, 2)
+    return X_final, end_time
     
-    return Theta_final, end_time
-    
+
 def count_nnz(X, rows):
     '''
     Function to count nnz on a matrix
@@ -161,6 +174,22 @@ def is_symmetric(X):
     if sp.sparse.issparse(X):
         X = X.toarray()
     return np.allclose(X, X.T)
+
+def check_symmetric_sparse(X):
+    if X.shape[0] != X.shape[1]:
+        return False
+    
+    # Check if the sparsity pattern is symmetric first (quick check)
+    if not (X != X.T).nnz == 0:
+        return False
+    
+    # If pattern is symmetric, check values
+    difference = X - X.T
+    if difference.nnz == 0:
+        return True
+    
+    return False
+
 
 def sparsity_pattern(X, save=False, path=None):
     '''
