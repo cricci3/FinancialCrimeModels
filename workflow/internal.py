@@ -112,53 +112,7 @@ def normalization(df, name):
     return Y_new
 
 
-def adjaceny_matrix(Y_norm, name, dimension):
-
-    if name == 'AMLSIM':
-        transactions = pd.read_csv(f'datasets/AMLSim/{dimension} users/transactions.csv')
-        orig = "SENDER_ACCOUNT_ID"
-        dest = "RECEIVER_ACCOUNT_ID"
-        amnt = "TX_AMOUNT"
-
-    elif name == 'PAYSIM':
-        transactions = pd.read_csv(f'datasets/paysim/{dimension} users/rawLog.csv')
-        orig = "nameOrig"
-        dest = "nameDest"
-        amnt = "amount"      
-
-    elif name == 'LIBRA':
-        transactions = pd.read_csv(f'datasets/libra/realdata/libra_380K.csv')
-        orig = "id_source"
-        dest = "id_destination"
-        amnt = "cum_amount"
-
-    users_list = []
-    for _, row in transactions.iterrows():
-        if row[orig] not in users_list:
-            users_list.append(row[orig])
-        if row[dest] not in users_list:
-            users_list.append(row[dest])
-
-    id_to_int = {user_id: idx for idx, user_id in enumerate(users_list)} 
-
-    rows = len(Y_norm)
-
-    matrix = np.zeros((rows, rows))
-
-    for _, row in transactions.iterrows():
-        if name == 'AMLSIM' or name == 'LIBRA':
-            orig_acct = int(row[orig])
-            bene_acct = int(row[dest])
-            amount = float(row[amnt])
-        else:
-            orig_acct = int(id_to_int[row[orig]])
-            bene_acct = int(id_to_int[row[dest]])
-            amount = float(row[amnt])
-
-        matrix[orig_acct][bene_acct] += amount
-
-    mask = (matrix == 0) # cover all zeros
-
+def print_transaction_matrix(matrix):
     plt.figure(figsize=(8, 6))
     sns.heatmap(matrix, cmap='YlGnBu', fmt=".2f", cbar=True, mask=mask,
                 linewidths=0.5, linecolor='white')
@@ -167,7 +121,7 @@ def adjaceny_matrix(Y_norm, name, dimension):
     plt.ylabel("Sender Account", fontsize=22)
     plt.show()
 
-    return matrix
+    return
 
 
 def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
