@@ -1,5 +1,7 @@
 import pandas as pd
 from scipy.sparse import lil_matrix
+from collections import defaultdict
+
 
 
 def AMLSim_preprocessing(dimension):
@@ -12,7 +14,7 @@ def AMLSim_preprocessing(dimension):
         if dimension == '1K':
             chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=100)
             chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=100)
-        if dimension == '10K':
+        elif dimension == '10K':
             chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
             chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=1000)
         else:
@@ -102,7 +104,7 @@ def AMLSim_preprocessing(dimension):
     df.index.name = "date"
     df.columns = df.columns.astype(str)  # match your original str(user) keys
 
-    return df, account_prop
+    return df, account_prop, matrix
 
 
 def PaySim_preprocessing(dimension):
@@ -111,51 +113,72 @@ def PaySim_preprocessing(dimension):
 
     dataset_path = f"datasets/paysim/{dimension} users"
 
-    large_datasets = ['10K', '100K', '1M']
-
-    if dimension in large_datasets:
-        chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=10000)
+    if dimension != '100':
+        if dimension == '1K':
+            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=100)
+        elif dimension == '10K':
+            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=1000)
+        elif dimension == '100K':
+            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=10000)
+        
         transactions  = pd.concat(chunk)
     else:
         transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
-        #transactions = pd.read_csv('playground/squic_folder/paysim100-modified.csv')
 
-    balances = {}
+    # Initialize
+    balances = defaultdict(dict)   # {account: {step: balance}}
     fraud_account = set()
-    users_list = []
+    users_set = set()
 
-    for _, row in transactions.iterrows():
-        origin = row['nameOrig']
-        destination = row['nameDest']
-        fraud = row['isFraud']
+    for row in transactions.itertuples(index=False):
+        step = row.step
+        origin = row.nameOrig
+        dest = row.nameDest
+        new_orig_balance = row.newBalanceOrig
+        new_dest_balance = row.newBalanceDest
+        is_fraud = row.isFraud
 
-        if origin not in users_list:
-            users_list.append(origin)
-        if destination not in users_list:
-            users_list.append(destination)
+        # Track users -> to transform then ID in Int
+        users_set.add(origin)
+        users_set.add(dest)
 
-        if fraud == '1' or fraud == 1:
+        # Track frauds
+        if is_fraud == 1:
             fraud_account.add(origin)
-            fraud_account.add(destination)
+            fraud_account.add(dest)
 
-        # Track origin account
-        if origin not in balances:
-            balances[origin] = {}
-        balances[origin][row['step']] = row['newBalanceOrig']
+        balances[origin][step] = new_orig_balance
+        balances[dest][step] = new_dest_balance
 
-        # Track destination account
-        if destination not in balances:
-            balances[destination] = {}
-        balances[destination][row['step']] = row['newBalanceDest']
+    # Finalize user list and properties
+    users_list = list(users_set)
 
-    account_prop = {}
-
-    for i, user in enumerate(users_list):
-        account_prop[i] = {
+    account_prop = {
+        i: {
             "original_id": user,
             "fraud": user in fraud_account,
-            "class": str(user)[0] # Class could be C, M or B
-        }
+            "class": str(user)[0]  # 'C', 'M', or 'B'
+        } for i, user in enumerate(users_list)
+    }
+
+    # Create transactions matrix
+    max_account_id = max(account_prop) + 1
+
+    # Create sparse matrix
+    matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
+
+    user_to_id = {user: i for i, user in enumerate(users_list)}
+
+    for row in transactions.itertuples(index=False):
+        origin = row.nameOrig
+        dest = row.nameDest
+        amount = float(row.amount)
+
+        if origin in user_to_id and dest in user_to_id:
+            i = user_to_id[origin]
+            j = user_to_id[dest]
+            matrix[i, j] += amount
+            matrix[i, j] = round(matrix[i, j], 2)
 
     # Create DataFrame
     df = pd.DataFrame.from_dict(balances, orient='index').T
@@ -166,5 +189,5 @@ def PaySim_preprocessing(dimension):
     # Reindex to include all steps, then forward fill
     df = df.reindex(full_range).ffill().bfill()
 
-    return df, account_prop
+    return df, account_prop, matrix
 
