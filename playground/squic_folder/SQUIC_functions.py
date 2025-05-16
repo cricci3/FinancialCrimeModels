@@ -116,13 +116,12 @@ def squic_fit_matrix_sparse(Y, l, matrix, tau=0):
 
     M_sparse = csr_matrix(matrix)
 
-    # Step 4: Run SQUIC (assuming `squic.run` returns a sparse matrix)
+    # Step 4: Run SQUIC
     X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
     
-    # Ensure X2 is in CSR format for efficient arithmetic
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
 
-    # Step 5: Construct X_final as a sparse matrix (LIL format for efficient modification)
+    # Step 5: Construct X_final
     n = X2.shape[0]
     X_final = lil_matrix((n, n), dtype=X2.dtype)
 
@@ -138,7 +137,7 @@ def squic_fit_matrix_sparse(Y, l, matrix, tau=0):
         X_final[i, j] = X2[i, j]
         X_final[j, i] = X2[j, i]
 
-    # Convert back to CSR for efficient storage/operations
+    # Convert back to CSR
     X_final = X_final.tocsr()
     
     end_time = round(time.time() - start_time, 2)
@@ -157,7 +156,7 @@ def count_nnz(X, rows):
     nnz_r = nnz / rows
     return nnz, round(nnz_r, 2)
 
-def nnz_fit(X, rows):
+def nnz_sparse(X, rows):
     '''
     Function to count nnz on a matrix
     

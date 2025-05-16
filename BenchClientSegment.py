@@ -3,7 +3,7 @@ from workflow.internal import *
 
 if __name__ == '__main__':
     # Load dataset (the user will pass the name)
-    df, name, dimension, account_prop = load_dataset()
+    df, name, dimension, account_prop, trans_matrix = load_dataset()
 
     # Extract time series
     extract_timeseries(df, name)
@@ -11,11 +11,11 @@ if __name__ == '__main__':
     # Normalise time series
     Y_norm = normalization(df, name)
 
-    # Create transaction matrix
-    adj_matrix = adjaceny_matrix(Y_norm, name, dimension)
+    # Print transaction matrix matrix
+    print_transaction_matrix(trans_matrix)
 
     # Run SQUIC_fit
-    W_matrices, _ = squic_fit_computation(Y_norm, name, dimension, adj_matrix, printMatrix=False)
+    W_matrices, _ = squic_fit_computation(Y_norm, name, dimension, trans_matrix, printMatrix=False)
     
     # Use the extracted W for clustering
     dict_cluster = clustering(W_matrices)
