@@ -48,10 +48,10 @@ def load_dataset():
             continue
 
     if name == 'AMLSIM':
-        df, account_prop = AMLSim_preprocessing(dimension)
+        df, account_prop, trans_matrix = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
         # account prop for paysim is different, contains "class" also the type of user: B, C, M
-        df, account_prop = PaySim_preprocessing(dimension)
+        df, account_prop, trans_matrix = PaySim_preprocessing(dimension)
     elif name == 'LIBRE':
         # future implementation
         df = None
@@ -59,7 +59,7 @@ def load_dataset():
     else:
         df = None
 
-    return df, name, dimension, account_prop
+    return df, name, dimension, account_prop, trans_matrix
 
 
 def extract_timeseries(df, name):
