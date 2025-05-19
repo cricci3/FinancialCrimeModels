@@ -4,22 +4,20 @@ from workflow.external import load_dataset, squic_computation, prepare_LDA , ext
 
 if __name__ == '__main__':
     # Load dataset (the user will pass the name)
-    df, name, dimension, account_prop = load_dataset()
+    Y, name, dimension, account_prop, trans_matrix = load_dataset()
 
     # Extract time series
-    extract_timeseries(df, name)
+    extract_timeseries(Y, name)
 
     # Normalise time series
-    Y_norm = normalization(df, name)
-
-    # Create transaction matrix
-    # adj_matrix = adjaceny_matrix(Y_norm, name, dimension)
+    if name != 'LIBRA':
+        Y = normalization(Y, name)
 
     # Run SQUIC_fit to compute A (old W)
     # A_matrices, _ = squic_fit_computation(Y_norm, name, dimension, adj_matrix, printMatrix=False)
 
     # Run SQUIC to compute Θ
-    Theta_matrices, _ = squic_computation(Y_norm, name, dimension)
+    Theta_matrices, _ = squic_computation(Y, name, dimension)
 
     # Use the extracted A for clustering
     # dict_cluster = clustering(A_matrices)
