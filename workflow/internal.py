@@ -24,7 +24,7 @@ def parse_input(user_input):
     except ValueError:
         raise ValueError("Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K)")
 
-    valid_names = {"AMLSIM", "PAYSIM", "LIBRE"}
+    valid_names = {"AMLSIM", "PAYSIM", "LIBRA"}
     valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
 
     if name not in valid_names:
@@ -38,7 +38,7 @@ def parse_input(user_input):
 def load_dataset():
     """Prompt user input and load the corresponding dataset."""
     while True:
-        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K) or LIBRA: ")
 
         try:
             name, dimension = parse_input(user_input)
@@ -52,10 +52,10 @@ def load_dataset():
     elif name == 'PAYSIM':
         # account prop for paysim is different, contains "class" also the type of user: B, C, M
         df, account_prop, trans_matrix = PaySim_preprocessing(dimension)
-    elif name == 'LIBRE':
+    elif name == 'LIBRA':
         # future implementation
-        df = None
-        print("LIBRE dataset support not yet implemented.")
+        df, account_prop, trans_matrix = Libra_preprocessing()
+        print("LIBRA dataset support not yet implemented.")
     else:
         df = None
 

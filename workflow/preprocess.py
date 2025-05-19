@@ -191,3 +191,68 @@ def PaySim_preprocessing(dimension):
 
     return df, account_prop, matrix
 
+
+def Libra_preprocessing():
+    account_prop = {}
+
+    dataset_path = 'datasets/libra/realdata/'
+
+    transactions = pd.read_csv(dataset_path)
+
+    # Add timestamp column
+    n_steps = 90
+    transactions["step"] = transactions.random.randint(0, n_steps, size=len(transactions))
+
+    transactions = transactions.sort_values("step").reset_index(drop=True)
+
+    max_account_id = max(transactions.id_source.max(),
+                        transactions.id_destination.max()) + 1
+
+    # Initialize transaction matrix as sparse
+    matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
+
+
+    balances = defaultdict(dict)   # {account: {step: balance}}
+
+    for row in transactions.itertuples(index=False):
+        source = int(row.id_source)
+        destination = int(row.id_destination)
+        step = int(row.step)
+        amount = round(float(row.cum_amount), 3)  
+
+        # Update sparse matrix
+        matrix[source, destination] += amount
+
+        # Initialize balances if user appears for the first time
+        if source not in balances:
+            balances[source] = {step: 0}  # First transaction, balance starts at 0
+        if destination not in balances:
+            balances[destination] = {step: 0}
+
+        # Get the previous balance (default to 0 if first transaction)
+        prev_balance_source = max(balances[source].values(), default=0)
+        prev_balance_destination = max(balances[destination].values(), default=0)
+
+        # Update balances for this step
+        balances[source][step] = round(prev_balance_source - amount, 3)  # Source loses money
+        balances[destination][step] = round(prev_balance_destination + amount, 3)  # Destination gains money
+
+    # Create DataFrame
+    df = pd.DataFrame.from_dict(balances, orient='index').T
+
+    # Identify the full range of steps (days)
+    full_range = range(int(df.index.min()), int(df.index.max()) + 1)
+
+    # Reindex to include all steps, then forward fill
+    df = df.reindex(full_range).fillna(method='ffill').fillna(method='bfill')
+
+    # Reorder columns by IDs
+    columns_as_int = []
+    for col in df.columns:
+        columns_as_int.append(int(str(col).strip()))
+
+    columns_as_int.sort()
+
+    df = df[columns_as_int]
+
+    return df, account_prop, matrix
