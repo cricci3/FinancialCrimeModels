@@ -113,6 +113,8 @@ def normalization(df, name):
 
 
 def print_transaction_matrix(matrix):
+    mask = (matrix == 0) # cover all zeros
+
     plt.figure(figsize=(8, 6))
     sns.heatmap(matrix, cmap='YlGnBu', fmt=".2f", cbar=True, mask=mask,
                 linewidths=0.5, linecolor='white')

@@ -33,6 +33,13 @@ def AMLSim_preprocessing(dimension):
         acc_id: [{"date": 0, "balance": round(float(init_bal), 2)}] for acc_id, init_bal in zip(accounts["ACCOUNT_ID"], accounts["INIT_BALANCE"])
     }
 
+    accounts["IS_FRAUD"] = accounts["IS_FRAUD"].astype(str).str.lower() == "true"
+
+    # Create account_prop dictionary
+    account_prop = {
+        acc_id: is_fraud for acc_id, is_fraud in zip(accounts["ACCOUNT_ID"], accounts["IS_FRAUD"])
+    }
+
     transactions.sort_values(by="TX_ID", inplace=True)
 
     max_account_id = max(transactions["SENDER_ACCOUNT_ID"].max(),
