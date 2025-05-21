@@ -2,7 +2,6 @@ from workflow.preprocess import *
 from workflow.SQUIC_functions import *
 
 import matplotlib.pyplot as plt
-import matplotlib.colors as plt_color
 import seaborn as sns
 
 import json
@@ -11,28 +10,39 @@ import numpy as np
 import networkx as nx
 from networkx.algorithms import community
 from sklearn.cluster import DBSCAN, SpectralClustering
-from sklearn.metrics import silhouette_score
 
 from cosmograph import cosmo
 from tqdm import tqdm
 
 
-def parse_input(user_input):
-    """Parse and validate the dataset input in the format NAME_DIMENSION."""
-    try:
-        name, dimension = user_input.strip().upper().split("_")
-    except ValueError:
-        raise ValueError("Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K)")
 
-    valid_names = {"AMLSIM", "PAYSIM", "LIBRA"}
+def parse_input(user_input):
+    """Parse and validate the dataset input, which can be 'NAME_DIMENSION' or just 'NAME' (e.g., LIBRA)."""
+    user_input = user_input.strip().upper()
+    parts = user_input.split("_")
+
+    valid_names_with_dimensions = {"AMLSIM", "PAYSIM"}
+    valid_names_without_dimensions = {"LIBRA"}
     valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
 
-    if name not in valid_names:
-        raise ValueError(f"Invalid dataset name '{name}'. Valid options are: {', '.join(valid_names)}")
-    if dimension not in valid_dimensions:
-        raise ValueError(f"Invalid dimension '{dimension}'. Valid options are: {', '.join(valid_dimensions)}")
+    if len(parts) == 1:
+        name = parts[0]
+        if name not in valid_names_without_dimensions:
+            raise ValueError(f"Invalid dataset name '{name}'. Valid options are: "
+                             f"{', '.join(valid_names_with_dimensions | valid_names_without_dimensions)}")
+        return name, None
 
-    return name, dimension
+    elif len(parts) == 2:
+        name, dimension = parts
+        if name not in valid_names_with_dimensions:
+            raise ValueError(f"Invalid dataset name '{name}'. Valid options for dimensioned datasets are: "
+                             f"{', '.join(valid_names_with_dimensions)}")
+        if dimension not in valid_dimensions:
+            raise ValueError(f"Invalid dimension '{dimension}'. Valid options are: {', '.join(valid_dimensions)}")
+        return name, dimension
+
+    else:
+        raise ValueError("Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K) or just NAME (e.g., LIBRA)")
 
 
 def load_dataset():
@@ -55,7 +65,6 @@ def load_dataset():
     elif name == 'LIBRA':
         # future implementation
         df, account_prop, trans_matrix = Libra_preprocessing()
-        print("LIBRA dataset support not yet implemented.")
     else:
         df = None
 
@@ -65,16 +74,9 @@ def load_dataset():
 def extract_timeseries(df, name):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
-    plt.figure(figsize=(15,10))
+    plt.figure(figsize=(7,7))
 
-    if name == 'AMLSIM':
-        # Plot each column (account balance) as a line
-        for user in df.columns:
-            # color = 'mediumseagreen' if user.startswith('C') else 'hotpink'
-
-            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
-
-    elif name == 'PAYSIM':
+    if name == 'PAYSIM':
         # Plot each column (account balance) as a line
         for user in df.columns:
             if user.startswith('C'):
@@ -84,6 +86,13 @@ def extract_timeseries(df, name):
             else:
                 color = 'darkturquoise'
             plt.plot(df.index, df[user], color=color, label=f"User {user}", alpha=0.6)
+    
+    else:
+        # Plot each column (account balance) as a line
+        for user in df.columns:
+            # color = 'mediumseagreen' if user.startswith('C') else 'hotpink'
+
+            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
 
     # Add title and labels
     plt.xlabel("Days", fontsize=22)
@@ -145,17 +154,24 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     data_sym = []
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit_matrix(Y=Y_norm, l=rho, matrix=adjaceny_matrix)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
-        nnz, nnz_r = nnz_fit(W_matrices[rho], ROWS)
+        # Get diagonal elements
+        diagonal = W_matrices[rho].diagonal()
+
+        # Check if all diagonal element are zero
+        if not np.all(diagonal == 0):
+            print("There are some non zero(s) on the diagonal.")
+
+        nnz, nnz_r = nnz_sparse(W_matrices[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix:
-            sparsity_pattern(W_matrices[rho])
+            print_matrix(W_matrices[rho])
 
-        if is_symmetric(W_matrices[rho]):
+        if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
@@ -205,7 +221,7 @@ def clustering(W_matrices):
         X = np.abs(X) 
 
         # Ensure diagonal entries are zero
-        np.fill_diagonal(X, 0)
+        # np.fill_diagonal(X, 0)
 
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)

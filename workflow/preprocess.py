@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from scipy.sparse import lil_matrix
 from collections import defaultdict
 
@@ -202,13 +203,13 @@ def PaySim_preprocessing(dimension):
 def Libra_preprocessing():
     account_prop = {}
 
-    dataset_path = 'datasets/libra/realdata/'
+    dataset_path = 'datasets/libra/realdata/libra_380K.csv'
 
     transactions = pd.read_csv(dataset_path)
 
     # Add timestamp column
     n_steps = 90
-    transactions["step"] = transactions.random.randint(0, n_steps, size=len(transactions))
+    transactions["step"] = np.random.randint(0, n_steps, size=len(transactions))
 
     transactions = transactions.sort_values("step").reset_index(drop=True)
 
@@ -251,7 +252,8 @@ def Libra_preprocessing():
     full_range = range(int(df.index.min()), int(df.index.max()) + 1)
 
     # Reindex to include all steps, then forward fill
-    df = df.reindex(full_range).fillna(method='ffill').fillna(method='bfill')
+    # df = df.reindex(full_range).fillna(method='ffill').fillna(method='bfill') -> will be depracated
+    df = df.reindex(full_range).ffill().bfill()
 
     # Reorder columns by IDs
     columns_as_int = []
