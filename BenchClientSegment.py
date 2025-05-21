@@ -6,17 +6,16 @@ if __name__ == '__main__':
     Y, name, dimension, account_prop, trans_matrix = load_dataset()
 
     # Extract time series
-    extract_timeseries(Y, name)
+    # extract_timeseries(Y, name)
 
-    if name != 'LIBRA':
-        # Normalise time series
-        Y = normalization(Y, name)
+    # Normalise time series
+    Y_new = normalization(Y, name)
 
     # Print transaction matrix matrix
     # print_transaction_matrix(trans_matrix)
 
     # Run SQUIC_fit
-    W_matrices, _ = squic_fit_computation(Y, name, dimension, trans_matrix, printMatrix=False)
+    W_matrices, _ = squic_fit_computation(Y_new, name, dimension, trans_matrix, printMatrix=True)
     
     # Use the extracted W for clustering
     dict_cluster = clustering(W_matrices)
