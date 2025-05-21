@@ -70,13 +70,13 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
-        nnz, nnz_r = nnz_fit(theta_dict[rho], ROWS)
+        nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix:
-            sparsity_pattern(theta_dict[rho])
+            print_matrix(theta_dict[rho])
 
-        if is_symmetric(theta_dict[rho]):
+        if check_symmetric_sparse(theta_dict[rho]):
             #print(f"✅ Matrix is symmetric per rho {rho}")
             data_sym.append("Yes")
         else:
