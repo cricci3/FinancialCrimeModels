@@ -229,11 +229,13 @@ def clustering(W_matrices):
         G = nx.from_numpy_array(X)
 
         # Louvain
+        start = time.time()
         partition_louvain = community.louvain_communities(G)
+        end_louv = time.time() - start
         dict_cluster['louvain'][rho] = partition_louvain
 
         # DBSCAN with multiple params
-        best_score = float('inf')
+        best_diff = float('inf')
         best_params = None
 
         eps_range = np.linspace(0.1, 2.0, 20)
@@ -242,6 +244,8 @@ def clustering(W_matrices):
         eps_range = np.linspace(0.1, 2.0, 20)
         min_samples_range = range(3, 10)
 
+        print(f"Trying different params for DBSCAN for lambda = {rho}")
+        start = time.time()
         for eps in tqdm(eps_range):
             for min_samples in min_samples_range:
                 dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
@@ -254,13 +258,14 @@ def clustering(W_matrices):
                 partition = labels_to_partition(labels)
 
                 diff = abs(len(partition) - len(dict_cluster['louvain'][rho]))
-                if diff < best_score:
-                    best_score = diff
+                if diff < best_diff:
+                    best_diff = diff
                     best_params = (eps, min_samples)
 
         if best_params is not None:
-            print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
-            print(f"Best difference in number of clusters: {best_score:.4f}")
+            pass
+            # print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
+            # print(f"Best difference in number of clusters: {best_diff}")
         else:
             print("No suitable DBSCAN parameters found!")
 
@@ -270,14 +275,17 @@ def clustering(W_matrices):
         else:
             dbscan = DBSCAN()
         labels_dbscan = dbscan.fit_predict(X)
+        end_db = time.time() - start
 
         # Convert labels to list of sets
         partition_dbscan = labels_to_partition(labels_dbscan)
         dict_cluster['dbscan'][rho] = partition_dbscan
 
         # Use n_cluster = len(partitionin louvain)
+        start = time.time()
         clustering = SpectralClustering(n_clusters=len(dict_cluster['louvain'][rho]), affinity='precomputed', assign_labels='cluster_qr')
         labels_spectral = clustering.fit_predict(X)
+        end_spec = time.time() - start
 
         # Convert labels to list of sets
         partition_spectral = labels_to_partition(labels_spectral)
@@ -286,7 +294,11 @@ def clustering(W_matrices):
 
         print(f"Number of louvain cluster for rho {rho} is {len(partition_louvain)}")
         print(f"Number of DBSCAN cluster for rho {rho} is {len(partition_dbscan)}")
-        print(f"Number of Spectral cluster for rho {rho} is {len(partition_spectral)}")
+        print(f"Number of Spectral cluster for rho {rho} is {len(partition_spectral)}\n")
+
+        print(f"Time for Louvain for lambda = {rho} -> {end_louv}")
+        print(f"Time for DBSCAN for lambda = {rho} -> {end_db}")
+        print(f"Time for Spectral for lambda = {rho} -> {end_spec}\n")
     
     return dict_cluster
     
@@ -309,7 +321,7 @@ def internal_metrics(dict_cluster, W_matrices):
             X = np.abs(X) 
 
             # Ensure diagonal entries are zero
-            np.fill_diagonal(X, 0)
+            # np.fill_diagonal(X, 0)
 
             # Modularity
             G = nx.from_numpy_array(X)
