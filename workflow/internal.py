@@ -108,17 +108,19 @@ def extract_timeseries(df, name):
     
 
 def normalization(df, name):
-    Y = df.T.to_numpy()  # Convert to (users, days)
+    Y = df.T.values  # Convert to (users, days)
 
     if name == 'AMLSIM':
         # normalize the Y input data to achieve unit variance
         Y_new = np.diag(1/np.std(Y,1)) @ Y # each row of Y is scaled by the inverse of its standard deviation
+        return Y_new
     elif name == 'PAYSIM':
         stds = np.std(Y, axis=1)
         safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
         Y_new = np.diag(1 / safe_stds) @ Y
-
-    return Y_new
+        return Y_new
+    elif name == 'LIBRA':
+        return Y
 
 
 def print_transaction_matrix(matrix):
@@ -227,15 +229,12 @@ def clustering(W_matrices):
         G = nx.from_numpy_array(X)
 
         # Louvain
-        partition = community.louvain_communities(G)
-        # print(f"Number of cluster for rho {rho} is {len(partition)}")
-        dict_cluster['louvain'][rho] = partition
-
+        partition_louvain = community.louvain_communities(G)
+        dict_cluster['louvain'][rho] = partition_louvain
 
         # DBSCAN with multiple params
         best_score = float('inf')
         best_params = None
-        best_labels = None
 
         eps_range = np.linspace(0.1, 2.0, 20)
         min_samples_range = range(3, 10)
@@ -245,8 +244,8 @@ def clustering(W_matrices):
 
         for eps in tqdm(eps_range):
             for min_samples in min_samples_range:
-                dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-                labels = dbscan.fit_predict(np.asarray(X))
+                dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                labels = dbscan.fit_predict(X)
                 
                 # Ignore if all points are noise (-1) or single cluster
                 if len(set(labels)) <= 1 or (set(labels) == {-1}):
@@ -264,49 +263,30 @@ def clustering(W_matrices):
             print(f"Best difference in number of clusters: {best_score:.4f}")
         else:
             print("No suitable DBSCAN parameters found!")
-        print(f"Best difference in number of clusters: {best_score:.4f}")
 
         # DBSCAN
         if best_params is not None:
-            dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1])
+            dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
         else:
             dbscan = DBSCAN()
-        labels_dbscan = dbscan.fit_predict(np.asarray(X))
+        labels_dbscan = dbscan.fit_predict(X)
 
         # Convert labels to list of sets
         partition_dbscan = labels_to_partition(labels_dbscan)
         dict_cluster['dbscan'][rho] = partition_dbscan
 
-
-        # Spectral Clustering
-
-        # Try with different n cluster and evaluate w/ siluette score
-        # Define a range of number of clusters
-        # cluster_range = range(2, 11)
-        # sil_scores = []
-        # cluster_labels = {}
-
-        # for n in cluster_range:
-        #     clustering = SpectralClustering(n_clusters=n, affinity='precomputed', assign_labels='cluster_qr')
-        #     labels = clustering.fit_predict(np.asarray(X))
-
-        #     # Compute the Silhouette Score
-        #     score = silhouette_score(np.asarray(X), labels, metric='precomputed')
-        #     sil_scores.append(score)
-        #     cluster_labels[n] = labels
-
-        # # Automatically choose the best number of clusters
-        # best_n_clusters = cluster_range[np.argmax(sil_scores)]
-        # labels_spectral = cluster_labels[best_n_clusters]
-
         # Use n_cluster = len(partitionin louvain)
         clustering = SpectralClustering(n_clusters=len(dict_cluster['louvain'][rho]), affinity='precomputed', assign_labels='cluster_qr')
-        labels_spectral = clustering.fit_predict(np.asarray(X))
+        labels_spectral = clustering.fit_predict(X)
 
         # Convert labels to list of sets
         partition_spectral = labels_to_partition(labels_spectral)
 
         dict_cluster['spectral'][rho] = partition_spectral
+
+        print(f"Number of louvain cluster for rho {rho} is {len(partition_louvain)}")
+        print(f"Number of DBSCAN cluster for rho {rho} is {len(partition_dbscan)}")
+        print(f"Number of Spectral cluster for rho {rho} is {len(partition_spectral)}")
     
     return dict_cluster
     
