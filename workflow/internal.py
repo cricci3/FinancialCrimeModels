@@ -130,7 +130,10 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     with open('lambda_values.json') as f:
             lambda_data = json.load(f)
         
-    lambdas = lambda_data[name][dimension]["norm"]
+    if name != 'LIBRA':
+        lambdas = lambda_data[name][dimension]["norm"]
+    else:
+        lambdas = lambda_data[name]
 
     ROWS = len(Y_norm)
 
