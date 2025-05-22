@@ -451,7 +451,7 @@ def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbsc
     plt.show()
 
 
-def visualize_graph_internal(W_matrices, dict_partition, account_prop):
+def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
     # colors show the clusters
     # intensity of color shows amount of money within this account (node weight)
 
@@ -482,16 +482,22 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop):
             nx.set_node_attributes(G, community_mapping, 'community')
 
             fraud_mapping = {}
+            class_mapping = {}
             for node in G.nodes():
                 # Check if the node exists in account_prop (must be there)
                 if node in account_prop:
                     fraud_mapping[node] = account_prop[node]['fraud']
+                    if name == 'PAYSIM':
+                        class_mapping[node] = account_prop[node]['class']
                 else:
                     # Default value if node not found in account_prop
                     fraud_mapping[node] = False
             
             # Set fraud attributes for all nodes
             nx.set_node_attributes(G, fraud_mapping, 'fraud')
+            
+            if name == 'PAYSIM':
+                nx.set_node_attributes(G, class_mapping, 'class')
 
             # Nodes: build dataframe from node attributes
             nodes_data = []
@@ -499,6 +505,8 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop):
 
             for node, data in G.nodes(data=True):
                 is_fraud = data.get('fraud', False)
+                if name == 'PAYSIM':
+                    user_class = data.get('class', False)
 
                 # Create conditional label - only show label ID if fraudulent
                 label = str(node) if is_fraud else ""
@@ -506,7 +514,18 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop):
                 if is_fraud:
                     fraudolent.append(str(node))
 
-                nodes_data.append({
+                if name != 'PAYSIM':
+                    nodes_data.append({
+                        'id': node,
+                        # 'label': str(node),
+                        'label' : label,
+                        'community': data.get('community'),
+                        'color': data.get('color'),
+                        'degree': G.degree[node],
+                        'fraud' : is_fraud,
+                    })
+                else:
+                    nodes_data.append({
                     'id': node,
                     # 'label': str(node),
                     'label' : label,
@@ -514,7 +533,8 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop):
                     'color': data.get('color'),
                     'degree': G.degree[node],
                     'fraud' : is_fraud,
-                })
+                    'class' : user_class
+                    })
             
             points = pd.DataFrame(nodes_data)
 
@@ -559,8 +579,7 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop):
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
                 # link_color_by='community',
                 point_color_by='community',
-                point_label_by='fraud',
-                # point_label_by='id',
+                point_label_by='class', # or id or fraud 
                 point_size_by='degree', #'degree
                 point_color_strategy='map',
                 point_color_by_map=color_list,

@@ -10,14 +10,13 @@ if __name__ == '__main__':
     extract_timeseries(Y, name)
 
     # Normalise time series
-    if name != 'LIBRA':
-        Y = normalization(Y, name)
+    Y_new = normalization(Y, name)
 
     # Run SQUIC_fit to compute A (old W)
     # A_matrices, _ = squic_fit_computation(Y_norm, name, dimension, adj_matrix, printMatrix=False)
 
     # Run SQUIC to compute Θ
-    Theta_matrices, _ = squic_computation(Y, name, dimension)
+    Theta_matrices, _ = squic_computation(Y_new, name, dimension)
 
     # Use the extracted A for clustering
     # dict_cluster = clustering(A_matrices)

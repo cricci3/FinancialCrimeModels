@@ -23,6 +23,3 @@ if __name__ == '__main__':
     # Report internal metrics on the clustering
     int_metrics = internal_metrics(dict_cluster, W_matrices)
     visualize_metrics(int_metrics)
-
-    # Visualise with cosmograph -> not working in .py file
-    # visualize_graph(W_matrices, dict_cluster, account_prop, name, dimension)
