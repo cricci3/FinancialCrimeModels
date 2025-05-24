@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from scipy.sparse import lil_matrix
+from scipy.sparse import lil_matrix, coo_matrix
 from collections import defaultdict
 
 
@@ -116,88 +116,121 @@ def AMLSim_preprocessing(dimension):
 
 
 def PaySim_preprocessing(dimension):
+    max_steps=265
 
     account_prop = {}
 
     dataset_path = f"datasets/paysim/{dimension} users"
 
-    if dimension != '100':
-        if dimension == '1K':
-            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=100)
-        elif dimension == '10K':
-            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=1000)
-        elif dimension == '100K':
-            chunk = pd.read_csv(f'{dataset_path}/rawLog.csv', chunksize=10000)
+    print("First pass: Identifying users and fraud accounts...")
+    unique_users = set()
+    fraud_accounts = set()
+
+    if dimension == '100':
+        chunk_size = 1000
+    elif dimension == '1K':
+        chunk_size = 10000
+    elif dimension == '10K':
+        chunk_size = 100000
+    elif dimension == '100K':
+        chunk_size = 1000000
+    elif dimension == '1M':
+        chunk_size = 10000000
+
+    for chunk in pd.read_csv(dataset_path, chunksize=chunk_size):
+        # Get unique users
+        orig_users = chunk['nameOrig'].dropna().unique()
+        dest_users = chunk['nameDest'].dropna().unique()
+        unique_users.update(orig_users)
+        unique_users.update(dest_users)
         
-        transactions  = pd.concat(chunk)
-    else:
-        transactions = pd.read_csv(f'{dataset_path}/rawLog.csv')
-
-    # Initialize
-    balances = defaultdict(dict)   # {account: {step: balance}}
-    fraud_account = set()
-    users_set = set()
-
-    for row in transactions.itertuples(index=False):
-        step = row.step
-        origin = row.nameOrig
-        dest = row.nameDest
-        new_orig_balance = row.newBalanceOrig
-        new_dest_balance = row.newBalanceDest
-        is_fraud = row.isFraud
-
-        # Track users -> to transform then ID in Int
-        users_set.add(origin)
-        users_set.add(dest)
-
-        # Track frauds
-        if is_fraud == 1:
-            fraud_account.add(origin)
-            fraud_account.add(dest)
-
-        balances[origin][step] = new_orig_balance
-        balances[dest][step] = new_dest_balance
-
-    # Finalize user list and properties
-    users_list = list(users_set)
-
+        # Identify fraud accounts
+        fraud_rows = chunk[chunk['isFraud'] == 1]
+        fraud_accounts.update(fraud_rows['nameOrig'].dropna())
+        fraud_accounts.update(fraud_rows['nameDest'].dropna())
+        
+        del chunk
+    
+    unique_users = sorted(list(unique_users))
+    print(f"Found {len(unique_users)} unique users")
+    print(f"Found {len(fraud_accounts)} fraud accounts")
+    
+    # Create user-to-id mapping
+    user_to_id = {user: i for i, user in enumerate(unique_users)}
+    max_account_id = len(unique_users)
+    
+    # Initialize DataFrame for balances
+    df = pd.DataFrame(index=range(max_steps), columns=unique_users, dtype=float)
+    
+    # Initialize transaction tracking
+    edge_weights = defaultdict(float)
+    
+    # Track which users we've seen for balance tracking
+    user_first_seen = {}
+    
+    print("Second pass: Processing transactions and building matrices...")
+    
+    # Second pass: populate DataFrame and build transaction matrix
+    for chunk in pd.read_csv(dataset_path, chunksize=chunk_size):
+        for _, row in chunk.iterrows():
+            step = int(row['step'])
+            amount = float(row['amount'])
+            
+            # Get users
+            orig_user = row['nameOrig']
+            dest_user = row['nameDest']
+            
+            # Build transaction matrix (only if both users are valid)
+            if orig_user in user_to_id and dest_user in user_to_id:
+                i = user_to_id[orig_user]
+                j = user_to_id[dest_user]
+                edge_weights[(i, j)] += amount
+            
+            # Process origin user for balance DataFrame
+            old_balance = float(row['oldBalanceOrig'])
+            new_balance = float(row['newBalanceOrig'])
+                
+            if orig_user not in user_first_seen:
+                # First time seeing this user - backfill with old balance
+                if step > 0:
+                    df.loc[:step-1, orig_user] = old_balance
+                user_first_seen[orig_user] = True
+                
+            # Update from current step onwards
+            df.loc[step:, orig_user] = new_balance
+            
+            # Process destination user for balance DataFrame
+            old_balance = float(row['oldBalanceDest'])
+            new_balance = float(row['newBalanceDest'])
+                
+            if dest_user not in user_first_seen:
+                # First time seeing this user - backfill with old balance
+                if step > 0:
+                    df.loc[:step-1, dest_user] = old_balance
+                user_first_seen[dest_user] = True
+                
+            # Update from current step onwards
+            df.loc[step:, dest_user] = new_balance
+        
+        del chunk
+    
+    # Convert edge_weights dict to sparse matrix
+    print("Converting transaction data to sparse matrix...")
+    rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
+    transaction_matrix = coo_matrix((data, (rows, cols)), 
+                                      shape=(max_account_id, max_account_id)).tolil()
+   
+    # Create account properties dictionary
     account_prop = {
         i: {
             "original_id": user,
-            "fraud": user in fraud_account,
+            "fraud": user in fraud_accounts,
             "class": str(user)[0]  # 'C', 'M', or 'B'
-        } for i, user in enumerate(users_list)
+        }
+        for i, user in enumerate(unique_users)
     }
 
-    # Create transactions matrix
-    max_account_id = max(account_prop) + 1
-
-    # Create sparse matrix
-    matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
-
-    user_to_id = {user: i for i, user in enumerate(users_list)}
-
-    for row in transactions.itertuples(index=False):
-        origin = row.nameOrig
-        dest = row.nameDest
-        amount = float(row.amount)
-
-        if origin in user_to_id and dest in user_to_id:
-            i = user_to_id[origin]
-            j = user_to_id[dest]
-            matrix[i, j] += amount
-            matrix[i, j] = round(matrix[i, j], 2)
-
-    # Create DataFrame
-    df = pd.DataFrame.from_dict(balances, orient='index').T
-
-    # Identify the full range of steps (days)
-    full_range = range(df.index.min(), df.index.max() + 1)
-
-    # Reindex to include all steps, then forward fill
-    df = df.reindex(full_range).ffill().bfill()
-
-    return df, account_prop, matrix
+    return df, account_prop, transaction_matrix
 
 
 def Libra_preprocessing():
