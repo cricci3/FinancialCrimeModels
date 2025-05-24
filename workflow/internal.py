@@ -484,10 +484,10 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
             fraud_mapping = {}
             class_mapping = {}
             for node in G.nodes():
-                # Check if the node exists in account_prop (must be there)
-                if node in account_prop:
-                    fraud_mapping[node] = account_prop[node]['fraud']
-                    if name == 'PAYSIM':
+                if node in account_prop and isinstance(account_prop[node], dict):
+                    if 'fraud' in account_prop[node]:
+                        fraud_mapping[node] = account_prop[node]['fraud']
+                    if name == 'PAYSIM' and 'class' in account_prop[node]:
                         class_mapping[node] = account_prop[node]['class']
                 else:
                     # Default value if node not found in account_prop
