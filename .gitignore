@@ -8,6 +8,9 @@ graphs/
 lambda_values.json
 *.R
 
+playground/squic_folder/matrice_sparsa.npz
+playground/squic_folder/account_prop.json
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
