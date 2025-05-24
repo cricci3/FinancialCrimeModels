@@ -7,112 +7,97 @@ from collections import defaultdict
 
 def AMLSim_preprocessing(dimension):
     account_prop = {}
+    max_steps = 200
 
     dataset_path = f"datasets/AMLSim/{dimension} users"
+    accounts_csv = f"{dataset_path}/accounts.csv"
+    transactions_csv = f"{dataset_path}/transactions.csv"
 
-    if dimension != '100':
-        # dimension grater than 100 read by chunk
-        if dimension == '1K':
-            chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=100)
-            chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=100)
-        elif dimension == '10K':
-            chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=1000)
-            chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=1000)
-        else:
-            chunk_acc = pd.read_csv(f'{dataset_path}/accounts.csv', chunksize=10000)
-            chunk_trns = pd.read_csv(f'{dataset_path}/transactions.csv', chunksize=10000)
+    if dimension == '100':
+        chunk_size = 1000
+    elif dimension == '1K':
+        chunk_size = 10000
+    elif dimension == '10K':
+        chunk_size = 100000
+    elif dimension == '100K':
+        chunk_size = 1000000
+    elif dimension == '1M':
+        chunk_size = 10000000
 
-        accounts = pd.concat(chunk_acc)
-        transactions = pd.concat(chunk_trns)
+    accounts_df = pd.read_csv(accounts_csv)
+    
+    # Setup account mapping and initial state
+    unique_accounts = sorted(accounts_df['ACCOUNT_ID'])
+    
+    initial_balances = {}
+    fraud_accounts = set()
+    
+    for _, row in accounts_df.iterrows():
+        acc_id = row['ACCOUNT_ID']
+        initial_balances[acc_id] = float(row['INIT_BALANCE'])
+        if str(row['IS_FRAUD']) == 'true':
+            fraud_accounts.add(acc_id)
+    
+    # Initialize structures
+    df = pd.DataFrame(index=range(max_steps), columns=unique_accounts, dtype=float)
+    for acc_id in unique_accounts:
+        df.loc[:, acc_id] = initial_balances[acc_id]
+    
+    current_balances = initial_balances.copy()
+    edge_weights = defaultdict(float)
+        
+    # Process transactions by timestamp chunks to maintain balance accuracy
+    chunk_size = 100000
+    
+    # Read and process transactions chunk by chunk, sorting each chunk
+    for chunk in pd.read_csv(transactions_csv, chunksize=chunk_size):
+        chunk['IS_FRAUD'] = chunk['IS_FRAUD'].astype(str).str == 'true'
+        chunk = chunk.sort_values('TIMESTAMP')
+                
+        for _, row in chunk.iterrows():
+            timestamp = int(row['TIMESTAMP'])
+                
+            sender_id = row['SENDER_ACCOUNT_ID']
+            receiver_id = row['RECEIVER_ACCOUNT_ID']
+            amount = float(row['TX_AMOUNT'])
+            is_fraud = row['IS_FRAUD']
+            
+            # Update balances and DataFrame directly
+            if sender_id in current_balances:
+                current_balances[sender_id] -= amount
+                df.loc[timestamp:, sender_id] = current_balances[sender_id]
+                
+            if receiver_id in current_balances:
+                current_balances[receiver_id] += amount
+                df.loc[timestamp:, receiver_id] = current_balances[receiver_id]
+            
+            # Update transaction matrix
+            edge_weights[(sender_id, receiver_id)] += amount
+            
+            # Track fraud
+            if is_fraud:
+                fraud_accounts.add(sender_id)
+                fraud_accounts.add(receiver_id)
+        
+        del chunk
+    
+    # Create transaction matrix and account properties (same as before)
+    max_account_id = len(unique_accounts)
+    
+    if edge_weights:
+        rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
+        transaction_matrix = coo_matrix((data, (rows, cols)), 
+                                      shape=(max_account_id, max_account_id)).tolil()
     else:
-        # dimension == 100 read in normal way
-        accounts = pd.read_csv(f'{dataset_path}/accounts.csv')
-        transactions = pd.read_csv(f'{dataset_path}/transactions.csv')
-
-    # Create root for balances dict (initial balance and timestamp 0)
-    balances = {
-        acc_id: [{"date": 0, "balance": round(float(init_bal), 2)}] for acc_id, init_bal in zip(accounts["ACCOUNT_ID"], accounts["INIT_BALANCE"])
-    }
-
-    accounts["IS_FRAUD"] = accounts["IS_FRAUD"].astype(str).str.lower() == "true"
-
-    # Create account_prop dictionary
-    account_prop = {
-        acc_id: is_fraud for acc_id, is_fraud in zip(accounts["ACCOUNT_ID"], accounts["IS_FRAUD"])
-    }
-
-    transactions.sort_values(by="TX_ID", inplace=True)
-
-    max_account_id = max(transactions["SENDER_ACCOUNT_ID"].max(),
-                        transactions["RECEIVER_ACCOUNT_ID"].max()) + 1
-
-    matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
+        transaction_matrix = lil_matrix((max_account_id, max_account_id), dtype=float)
     
-    for row in transactions.itertuples(index=False): # If True, return the index as the first element of the tuple
-        orig_acct = row.SENDER_ACCOUNT_ID
-        bene_acct = row.RECEIVER_ACCOUNT_ID
-        amount = float(row.TX_AMOUNT)
-        tx_type = row.TX_TYPE
-        date = row.TIMESTAMP
-
-        # Update transaction matrix
-        matrix[orig_acct, bene_acct] += float(amount)
-        matrix[orig_acct, bene_acct] = round(matrix[orig_acct, bene_acct], 2)
-
-        # Process sender
-        if tx_type in ['TRANSFER', 'WITHDRAWAL'] and orig_acct in balances:
-            last_balance = balances[orig_acct][-1]["balance"]
-            new_balance = last_balance - amount
-            balances[orig_acct].append({
-                "date": date,
-                "balance": round(new_balance, 2)
-            })
-
-        # Process receiver
-        if tx_type in ['TRANSFER', 'DEPOSIT'] and bene_acct in balances:
-            last_balance = balances[bene_acct][-1]["balance"]
-            new_balance = last_balance + amount
-            balances[bene_acct].append({
-                "date": date,
-                "balance": round(new_balance, 2)
-            })
+    account_prop = {}
+    for i, acc_id in enumerate(unique_accounts):
+        account_prop[i] = {
+            "fraud": acc_id in fraud_accounts,
+        }
     
-    # Step 1: Flatten the balances dict to a DataFrame
-    records = []
-
-    for user_id, history in balances.items():
-        for entry in history:
-            records.append({
-                "ACCOUNT_ID": user_id,
-                "TIMESTAMP": entry["date"],
-                "BALANCE": entry["balance"]
-            })
-
-    df = pd.DataFrame(records)
-
-    # Sort by timestamp and user
-    df.sort_values(by=["ACCOUNT_ID", "TIMESTAMP"], inplace=True)
-    # Remove duplicates keeping the latest
-    df.drop_duplicates(subset=["ACCOUNT_ID", "TIMESTAMP"], keep="last", inplace=True)
-
-    # Create a full grid of all timestamps and all users
-    all_dates = sorted(transactions["TIMESTAMP"].unique())
-    all_users = df["ACCOUNT_ID"].unique()
-    grid = pd.MultiIndex.from_product([all_users, all_dates], names=["ACCOUNT_ID", "TIMESTAMP"])
-
-    # Reindex the balance DataFrame to the full grid
-    df = df.set_index(["ACCOUNT_ID", "TIMESTAMP"])
-    df = df.reindex(grid)
-
-    # Forward fill missing balances (per user)
-    df["BALANCE"] = df["BALANCE"].groupby(level=0).ffill()
-
-    # Reset index and pivot to get final table: one row per date, one column per user
-    df = df.reset_index().pivot(index="TIMESTAMP", columns="ACCOUNT_ID", values="BALANCE")
-    df.index.name = "date"
-    df.columns = df.columns.astype(str)  # match your original str(user) keys
-
-    return df, account_prop, matrix
+    return df, account_prop, transaction_matrix
 
 
 def PaySim_preprocessing(dimension):
@@ -120,7 +105,7 @@ def PaySim_preprocessing(dimension):
 
     account_prop = {}
 
-    dataset_path = f"datasets/paysim/{dimension} users"
+    dataset_path = f"datasets/paysim/{dimension} users/rawLog.csv"
 
     print("First pass: Identifying users and fraud accounts...")
     unique_users = set()
