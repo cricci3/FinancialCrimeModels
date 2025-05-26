@@ -194,13 +194,12 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     return W_matrices, table_fit_norm
 
 
-def connect_isolated(X, strategy='assign_isolated', min_correlation=1e-6):
+def connect_isolated(X, min_correlation=1e-6):
     """
-    Handle connectivity for SQUIC correlation matrices with many isolated nodes
+    Connect isolated nodes using very weak correlations
     
     Args:
         X: SQUIC correlation matrix
-        strategy: 'assign_isolated' or 'connect_weak'
         min_correlation: minimum correlation to add for isolated nodes
     
     Returns:
@@ -219,52 +218,17 @@ def connect_isolated(X, strategy='assign_isolated', min_correlation=1e-6):
     print(f"Other components: {len(components) - len(isolated_nodes) - 1}")
     
     X_connected = X.copy()
-    
-    if strategy == 'assign_isolated':
-        """
-        Assign isolated nodes to main component based on user type logic
-        This is best for merchant/client classification
-        """
-        print("Strategy: Assigning isolated nodes to main component")
         
-        # Connect each isolated node to its most similar node in main component
-        for isolated_node in isolated_nodes:
-            # Find the node in main component with highest original correlation
-            # (before the sparsification that SQUIC applied)
-            best_connection = None
-            max_similarity = 0
-            
-            # Since SQUIC zeroed out weak correlations, we need to use a heuristic
-            # Connect to a representative node from main component
-            main_nodes = list(main_component)
-            
-            # Strategy: connect to the node with most connections (hub node)
-            node_degrees = [(node, G.degree(node)) for node in main_nodes]
-            hub_node = max(node_degrees, key=lambda x: x[1])[0]
-            
-            # Add weak connection to hub
-            X_connected[isolated_node, hub_node] = min_correlation
-            X_connected[hub_node, isolated_node] = min_correlation
-            
-            print(f"  Connected isolated node {isolated_node} to hub node {hub_node}")
-    
-    elif strategy == 'connect_weak':
-        """
-        Connect isolated nodes using very weak correlations
-        Preserves the sparse nature but ensures connectivity
-        """
-        print("Strategy: Adding weak connections to isolated nodes")
+    for isolated_node in isolated_nodes:
+        # Connect to nearest node in main component (arbitrary but deterministic)
+        main_nodes = list(main_component)
+        # Use node index distance as a simple heuristic
+        nearest_main = min(main_nodes, key=lambda x: abs(x - isolated_node))
         
-        for isolated_node in isolated_nodes:
-            # Connect to nearest node in main component (arbitrary but deterministic)
-            main_nodes = list(main_component)
-            # Use node index distance as a simple heuristic
-            nearest_main = min(main_nodes, key=lambda x: abs(x - isolated_node))
-            
-            X_connected[isolated_node, nearest_main] = min_correlation
-            X_connected[nearest_main, isolated_node] = min_correlation
-            
-            print(f"  Weakly connected node {isolated_node} to node {nearest_main}")
+        X_connected[isolated_node, nearest_main] = min_correlation
+        X_connected[nearest_main, isolated_node] = min_correlation
+        
+        # print(f"  Weakly connected node {isolated_node} to node {nearest_main}")
     
     # Handle any remaining multi-node components
     remaining_components = [comp for comp in components 
@@ -295,17 +259,16 @@ def connect_isolated(X, strategy='assign_isolated', min_correlation=1e-6):
             X_connected[i, j] = min_correlation
             X_connected[j, i] = min_correlation
         
-        print(f"  Connected component of {len(comp)} nodes to main component")
+        # print(f"  Connected component of {len(comp)} nodes to main component")
     
     return X_connected
 
 
-def create_connected_graph(X):
-    X_connected = connect_isolated(X, strategy='connect_weak')
-    return X_connected
-
-
 def similarity_graph(G, account_prop, X):
+    '''
+    Use the "class" from account_prop to build a class-based similarity matrix and then merge with matrix
+    '''
+    
     print("Using Similairty graph")
 
     components = list(nx.connected_components(G))
@@ -343,7 +306,6 @@ def similarity_graph(G, account_prop, X):
     return X
 
 
-
 def labels_to_partition(labels):
     """Convert label array [0,0,1,1,2,2] -> list of sets [{0,1},{2,3},{4,5}]"""
     clusters = {}
@@ -373,29 +335,32 @@ def clustering(W_matrices, name, account_prop):
         X = np.abs(X) 
 
         # Ensure diagonal entries are zero
-        X.setdiag(0)
+        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
 
         if nx.is_connected(G):
             print("Graph already connected!")
+        
+        # if graph not connected, user Similairty Graph for paysim, other technique for AMLSIM/Libra
         elif name != 'PAYSIM':
             print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
 
-            X = create_connected_graph(X)
+            X = connect_isolated(X)
             G = nx.from_numpy_array(X)
 
             print(f"Final graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
             print(f"Is connected? {nx.is_connected(G)}")
         else: # for PAYSIM only -> use similarity graph
+            print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
 
             X = similarity_graph(G, account_prop, X)
             G = nx.from_numpy_array(X)
 
             if not nx.is_connected(G):
                 print("Graph still not connected after Similarity Graph")
-                X = create_connected_graph(X)
+                X = connect_isolated(X)
                 G = nx.from_numpy_array(X)
             else:
                 print("Graph connected after Similarity Graph")
@@ -435,17 +400,11 @@ def clustering(W_matrices, name, account_prop):
                     best_params = (eps, min_samples)
 
         if best_params is not None:
-            pass
-            # print(f"Best params: eps={best_params[0]}, min_samples={best_params[1]}")
-            # print(f"Best difference in number of clusters: {best_diff}")
-        else:
-            print("No suitable DBSCAN parameters found!")
-
-        # DBSCAN
-        if best_params is not None:
             dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
         else:
+            print("No suitable DBSCAN parameters found!")
             dbscan = DBSCAN()
+
         labels_dbscan = dbscan.fit_predict(X)
         end_db = time.time() - start
 
@@ -464,13 +423,13 @@ def clustering(W_matrices, name, account_prop):
 
         dict_cluster['spectral'][rho] = partition_spectral
 
-        print(f"Number of louvain cluster for rho {rho} is {len(partition_louvain)}")
-        print(f"Number of DBSCAN cluster for rho {rho} is {len(partition_dbscan)}")
-        print(f"Number of Spectral cluster for rho {rho} is {len(partition_spectral)}\n")
+        # print(f"Number of louvain cluster for rho {rho} is {len(partition_louvain)}")
+        # print(f"Number of DBSCAN cluster for rho {rho} is {len(partition_dbscan)}")
+        # print(f"Number of Spectral cluster for rho {rho} is {len(partition_spectral)}\n")
 
-        print(f"Time for Louvain for lambda = {rho} -> {end_louv}")
-        print(f"Time for DBSCAN for lambda = {rho} -> {end_db}")
-        print(f"Time for Spectral for lambda = {rho} -> {end_spec}\n")
+        # print(f"Time for Louvain for lambda = {rho} -> {end_louv}")
+        # print(f"Time for DBSCAN for lambda = {rho} -> {end_db}")
+        # print(f"Time for Spectral for lambda = {rho} -> {end_spec}\n")
     
     return dict_cluster
     
@@ -493,7 +452,7 @@ def internal_metrics(dict_cluster, W_matrices):
             X = np.abs(X) 
 
             # Ensure diagonal entries are zero
-            # np.fill_diagonal(X, 0)
+            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
             # Modularity
             G = nx.from_numpy_array(X)
