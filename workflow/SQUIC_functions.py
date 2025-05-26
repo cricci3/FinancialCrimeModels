@@ -4,6 +4,7 @@ import scipy as sp
 import numpy as np
 import time
 from scipy.sparse import csr_matrix, lil_matrix, triu, find, isspmatrix_csr
+import json
 
 
 '''
@@ -12,6 +13,12 @@ The following lib contains
 - compute_squic_matrix -> function to compute SQUIC given a matrix as bias
 - squic_fit_sparse -> function to compute SQUIC_Fit (sparse result)
 - squic_fit_matrix_sparse -> function to compute SQUIC_Fit (sparse result) given a matrix as bias
+
+Compute SQUIC/fit
+- squic_computation
+- squic_matrix_computation
+- squic_fit_computation
+- squic_fit_matrix_computation
 
 Utility functions:
 - nnz_sparse -> count number of nnz and nnz/row given a sparse matrix (SQUIC/Fit results)
@@ -26,14 +33,13 @@ def compute_squic(Y, lambda_val):
 
     Return:
     - X: Precision Matrix
-    - Theta: inverse of X -> Covariance Matrix
     - time: computation time
     '''
-    [X,Theta,times,_,_,_] = squic.run(Y,lambda_val)
+    [X,_,times,_,_,_] = squic.run(Y,lambda_val)
 
     time = times[0]
 
-    return X, Theta, time
+    return X, time
 
 
 def compute_squic_matrix(Y, lambda_val, bias_matrix):
@@ -66,7 +72,8 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     start_time = time.time()
     # First squic call -> Identify negative off-diagonal elements (Equation 9)
     X1, _, _, _, _, _  = squic.run(Y, lambda_val)
-    X1 = X1.todense()
+    X1 = X1.tocsr() if not isspmatrix_csr(X1) else X1
+
     
     # Step 2: Build Graphical Bias G (Equation 10)
     G = np.zeros_like(X1)
@@ -79,29 +86,31 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     # Apply eta where G is nonzero
     Lambda[G != 0] = eta
     
-    # Step 4: Second SQUIC estimation with bias (Equation 11)
-    X2, _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda)
-    X2 = X2.todense()
+    # Step 4: Run SQUIC
+    X2, _, _, _, _, _ = squic.run(Y, lambda_val)
     
-    # Step 5: Construct the final M-matrix (Equation 13)
-    X_final = np.zeros_like(X2)
-    
-    # Get diagonal
-    diag = np.diag(X2)
-    
-    # Identify negative off-diagonal elements
+    X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
+
+    # Step 5: Construct X_final
     n = X2.shape[0]
-    for i in range(n):
-        for j in range(i+1, n):
-            if X2[i, j] < -tau:
-                X_final[i, j] = X2[i, j]
-                X_final[j, i] = X2[j, i]
+    X_final = lil_matrix((n, n), dtype=X2.dtype)
+
+    # Copy the diagonal
+    # diag = X2.diagonal()
+    # X_final.setdiag(diag)
+
+    # Find negative off-diagonal elements < -tau (only upper triangle to avoid duplicates)
+    rows, cols, vals = find(triu(X2 < -tau, k=1))  # k=1 excludes diagonal
+
+    # Set values in X_final (symmetric update)
+    for i, j, val in zip(rows, cols, vals):
+        X_final[i, j] = X2[i, j]
+        X_final[j, i] = X2[j, i]
+
+    # Convert back to CSR
+    X_final = X_final.tocsr()
     
-    # Restore diagonal
-    np.fill_diagonal(X_final, diag)
-    end_time = time.time() - start_time
-    end_time = round(end_time, 2)
-    
+    end_time = round(time.time() - start_time, 2)
     return X_final, end_time
 
 
@@ -195,6 +204,150 @@ def print_matrix(X, save=False, path=None):
         plt.savefig(path)
     
     plt.show()
+
+
+def squic_computation(Y_norm, name, dimension, printMatrix=False):
+    with open('lambda_values.json') as f:
+            lambda_data = json.load(f)
+        
+    if name != 'LIBRA':
+        lambdas = lambda_data[name][dimension]["norm"]
+    else:
+        lambdas = lambda_data[name]
+
+    ROWS = len(Y_norm)
+
+    # Dict to store precision matrix given by SQUIC
+    theta_dict = {}
+
+    for rho in lambdas:
+        theta_dict[rho], end_time = compute_squic(Y_norm, lambda_val=rho)
+        end_time = round(end_time, 2)
+        print(f"required time: {end_time}")
+
+        nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
+        print(f"nnz = {nnz} per rows = {nnz_r}")
+
+        if printMatrix:
+            print_matrix(theta_dict[rho])
+
+        if check_symmetric_sparse(theta_dict[rho]):
+            print(f" Matrix is symmetric per rho {rho}")
+        else:
+            print(f" Matrix is not symmetric per rho {rho}")
+
+    return theta_dict
+
+
+def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
+    with open('lambda_values.json') as f:
+            lambda_data = json.load(f)
+        
+    if name != 'LIBRA':
+        lambdas = lambda_data[name][dimension]["norm"]
+    else:
+        lambdas = lambda_data[name]
+
+    ROWS = len(Y_norm)
+
+    # Dict to store precision matrix given by SQUIC
+    theta_dict = {}
+
+    for rho in lambdas:
+        theta_dict[rho], end_time = compute_squic_matrix(Y_norm, lambda_val=rho, bias_matrix=adjaceny_matrix)
+        end_time = round(end_time, 2)
+        print(f"required time: {end_time}")
+
+        nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
+        print(f"nnz = {nnz} per rows = {nnz_r}")
+
+        if printMatrix:
+            print_matrix(theta_dict[rho])
+
+        if check_symmetric_sparse(theta_dict[rho]):
+            print(f" Matrix is symmetric per rho {rho}")
+        else:
+            print(f" Matrix is not symmetric per rho {rho}")
+
+    return theta_dict
+
+
+def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
+    with open('lambda_values.json') as f:
+            lambda_data = json.load(f)
+        
+    if name != 'LIBRA':
+        lambdas = lambda_data[name][dimension]["norm"]
+    else:
+        lambdas = lambda_data[name]
+
+    ROWS = len(Y_norm)
+
+    W_matrices = {}
+
+    for rho in lambdas:
+        W_matrices[rho], end_time = squic_fit_sparse(Y=Y_norm, l=rho)
+        end_time = round(end_time, 2)
+        print(f"required time: {end_time}")
+
+        # Get diagonal elements
+        diagonal = W_matrices[rho].diagonal()
+
+        # Check if all diagonal element are zero
+        if not np.all(diagonal == 0):
+            print("There are some non zero(s) on the diagonal.")
+
+        nnz, nnz_r = nnz_sparse(W_matrices[rho], ROWS)
+        print(f"nnz = {nnz} per rows = {nnz_r}")
+
+        if printMatrix:
+            print_matrix(W_matrices[rho])
+
+        if check_symmetric_sparse(W_matrices[rho]):
+            print(f" Matrix is symmetric per rho {rho}")
+        else:
+            print(f" Matrix is not symmetric per rho {rho}")
+
+    return W_matrices
+
+
+def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
+    with open('lambda_values.json') as f:
+            lambda_data = json.load(f)
+        
+    if name != 'LIBRA':
+        lambdas = lambda_data[name][dimension]["norm"]
+    else:
+        lambdas = lambda_data[name]
+
+    ROWS = len(Y_norm)
+
+    W_matrices = {}
+
+    for rho in lambdas:
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
+        end_time = round(end_time, 2)
+        print(f"required time: {end_time}")
+
+        # Get diagonal elements
+        diagonal = W_matrices[rho].diagonal()
+
+        # Check if all diagonal element are zero
+        if not np.all(diagonal == 0):
+            print("There are some non zero(s) on the diagonal.")
+
+        nnz, nnz_r = nnz_sparse(W_matrices[rho], ROWS)
+        print(f"nnz = {nnz} per rows = {nnz_r}")
+
+        if printMatrix:
+            print_matrix(W_matrices[rho])
+
+        if check_symmetric_sparse(W_matrices[rho]):
+            print(f" Matrix is symmetric per rho {rho}")
+        else:
+            print(f" Matrix is not symmetric per rho {rho}")
+
+    return W_matrices
 
 
 # def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
