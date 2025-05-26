@@ -46,57 +46,6 @@ def load_dataset():
     return df, name, dimension, account_prop
 
 
-def squic_computation(Y_norm, name, dimension, printMatrix=False):
-    with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
-        
-    if name != 'LIBRA':
-        lambdas = lambda_data[name][dimension]["norm"]
-    else:
-        lambdas = lambda_data[name]
-
-    ROWS = len(Y_norm)
-
-    # Dict to store covariance matrix given by SQUIC
-    theta_dict = {}
-
-    data_nnz = []
-    data_nnzr = []
-    data_time = []
-    data_sym = []
-
-    for rho in lambdas:
-        theta_dict[rho], _, end_time = compute_squic(Y_norm, lambda_val=rho)
-        end_time = round(end_time, 2)
-        print(f"required time: {end_time}")
-
-        nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
-        print(f"nnz = {nnz} per rows = {nnz_r}")
-
-        if printMatrix:
-            print_matrix(theta_dict[rho])
-
-        if check_symmetric_sparse(theta_dict[rho]):
-            #print(f"✅ Matrix is symmetric per rho {rho}")
-            data_sym.append("Yes")
-        else:
-            print(f"❌ Matrix is not symmetric per rho {rho}")
-            data_sym.append("No")
-
-        data_nnz.append(nnz)
-        data_nnzr.append(nnz_r)
-        data_time.append(end_time)
-
-    table_norm = [
-            ["NNZ"] + data_nnz,
-            ["NNZ/Row"] + data_nnzr,
-            ["Time (s)"] + data_time,
-            ["Symmetric"] + data_sym
-    ]
-
-    return theta_dict, table_norm
-
-
 def linear_DA(data_train, labels_train, data_test, labels_test, Theta):
     n_train = labels_train.shape[0]
     n_test = labels_test.shape[0]
