@@ -210,7 +210,7 @@ def PaySim_preprocessing(dimension):
         i: {
             "original_id": user,
             "fraud": user in fraud_accounts,
-            "class": str(user)[0]  # 'C', 'M', or 'B'
+            "class": str(user)[0] if str(user)[0] != 'B' else 'C'  # Class is 'C' or 'M' but map 'B' to 'C' (since there is just 1 B)
         }
         for i, user in enumerate(unique_users)
     }
