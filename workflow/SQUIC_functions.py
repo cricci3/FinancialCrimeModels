@@ -1,10 +1,11 @@
-import matplotlib.pyplot as plt
 import squic
-import scipy as sp
 import numpy as np
+import scipy as sp
 import time
 from scipy.sparse import csr_matrix, lil_matrix, triu, find, isspmatrix_csr
-import json
+from scipy.sparse import coo_matrix
+import json 
+import matplotlib.pyplot as plt
 
 
 '''
@@ -54,61 +55,66 @@ def compute_squic_matrix(Y, lambda_val, bias_matrix):
 
     M_sparse = csr_matrix(bias_matrix)
 
-    [X,Theta,times,_,_,_] = squic.run(Y,lambda_val, M=M_sparse)
+    [X,_,times,_,_,_] = squic.run(Y,lambda_val, M=M_sparse)
 
     time = times[0]
 
-    return X, Theta, time
+    return X, time
 
 
 def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     '''
     Sparse implementation of SQUIC-Fit
-
-    Return:
-    - X_final: adjacency matrix
-    - end_time: computation time
+    
+    Parameters:
+    - Y: Input data matrix (sparse or dense)
+    - lambda_val: Primary regularization parameter
+    - eta: Secondary regularization parameter for biased entries
+    - kappa: Threshold for identifying negative entries
+    - tau: Threshold for final selection
+    
+    Returns:
+    - X_final: Sparse adjacency matrix in CSR format
+    - end_time: Computation time in seconds
     '''
     start_time = time.time()
-    # First squic call -> Identify negative off-diagonal elements (Equation 9)
-    X1, _, _, _, _, _  = squic.run(Y, lambda_val)
+    
+    # --- Step 1: First SQUIC call ---
+    X1, _, _, _, _, _ = squic.run(Y, lambda_val)
     X1 = X1.tocsr() if not isspmatrix_csr(X1) else X1
-
     
-    # Step 2: Build Graphical Bias G (Equation 10)
-    G = np.zeros_like(X1)
-    G[np.triu_indices_from(G, k=1)] = (X1[np.triu_indices_from(X1, k=1)] < -kappa).astype(int)
-    G += G.T  # Make symmetric
+    # --- Step 2: Build Graphical Bias G (sparse version) ---
+    # Find negative off-diagonal elements < -kappa (upper triangle only)
+    rows, cols, _ = find(triu(X1 < -kappa, k=1))
     
-    # Step 3: Build Regularization Parameter Matrix Λ (Equation 12)
-    #Lambda = np.full_like(Theta1, lambda_val) 
-    Lambda = np.zeros_like(X1)
-    # Apply eta where G is nonzero
-    Lambda[G != 0] = eta
+    # Create symmetric sparse matrix for G
+    data = np.ones_like(rows)
+    G = coo_matrix((np.concatenate([data, data]),
+                       (np.concatenate([rows, cols]),
+                        np.concatenate([cols, rows]))),
+                      shape=X1.shape).tocsr()
     
-    # Step 4: Run SQUIC
+    # --- Step 3: Build Regularization Parameter Matrix Λ ---
+    # Create sparse Lambda matrix with eta where G is nonzero
+    Lambda = lil_matrix(X1.shape)
+    Lambda[G.nonzero()] = eta
+    Lambda = Lambda.tocsr()
+    
+    # --- Step 4: Second SQUIC call with bias ---
+    # (Assuming squic.run can accept sparse Lambda)
     X2, _, _, _, _, _ = squic.run(Y, lambda_val)
-    
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
-
-    # Step 5: Construct X_final
-    n = X2.shape[0]
-    X_final = lil_matrix((n, n), dtype=X2.dtype)
-
-    # Copy the diagonal
-    # diag = X2.diagonal()
-    # X_final.setdiag(diag)
-
-    # Find negative off-diagonal elements < -tau (only upper triangle to avoid duplicates)
-    rows, cols, vals = find(triu(X2 < -tau, k=1))  # k=1 excludes diagonal
-
-    # Set values in X_final (symmetric update)
-    for i, j, val in zip(rows, cols, vals):
-        X_final[i, j] = X2[i, j]
-        X_final[j, i] = X2[j, i]
-
-    # Convert back to CSR
-    X_final = X_final.tocsr()
+    
+    # --- Step 5: Construct final sparse matrix ---
+    # Find negative off-diagonal elements < -tau
+    rows, cols, vals = find(triu(X2 < -tau, k=1))
+    
+    # Create symmetric COO matrix directly (more efficient than LIL)
+    data = X2[rows, cols].A1  # Extract values as 1D array
+    X_final = coo_matrix((np.concatenate([data, data]),
+                       (np.concatenate([rows, cols]),
+                        np.concatenate([cols, rows]))),
+                      shape=X2.shape).tocsr()
     
     end_time = round(time.time() - start_time, 2)
     return X_final, end_time
@@ -286,7 +292,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     W_matrices = {}
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit_sparse(Y=Y_norm, l=rho)
+        W_matrices[rho], end_time = squic_fit_sparse(Y_norm, rho, rho/10)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 

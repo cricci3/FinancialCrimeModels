@@ -177,24 +177,12 @@ def labels_to_partition(labels):
     return list(clusters.values())
 
 
-def partition_to_labels(partition):
-    """Convert list of sets [{0,1},{2,3},{4,5}] -> label array [0,0,1,1,2,2]"""
-    # Create a dictionary to map each element to its label
-    element_to_label = {}
-    for label, cluster in enumerate(partition):
-        for element in cluster:
-            element_to_label[element] = label
-    
-    # Determine the size needed for the output array
-    if not partition:
-        return []
-    max_element = max(max(cluster) for cluster in partition)
-    labels = [0] * (max_element + 1)
-    
-    # Fill the labels array
-    for element, label in element_to_label.items():
-        labels[element] = label
-    
+def partition_to_labels(partition, n_nodes):
+    """Convert list-of-sets partition to flat label list."""
+    labels = np.zeros(n_nodes, dtype=int)
+    for i, community in enumerate(partition):
+        for node in community:
+            labels[node] = i
     return labels
 
 
@@ -289,37 +277,39 @@ def clustering(W_matrices, name, account_prop):
     return dict_cluster
 
 
-def clustering_2_communities(W_matrices, name, account_prop):
+def clustering_2_communities(results_squic, name, account_prop):
     dict_cluster = {
-        "spectral" : {},
+        "squic" : {},
+        "squic-matrix" : {},
+        "squic-fit" : {},
+        "squic-fit-matrix" : {}
     }
 
-    for rho, X in W_matrices.items():
-        # Ensure all off-diagonal entries are positive
-        X = np.abs(X) 
+    for technique, matrices in results_squic.items():
+        for rho, X in matrices.items():
+            # Ensure all off-diagonal entries are positive
+            X = np.abs(X) 
 
-        # Ensure diagonal entries are zero
-        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+            # Ensure diagonal entries are zero
+            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-        # Create a graph from matrix X
-        G = nx.from_scipy_sparse_array(X)
+            # Create a graph from matrix X
+            G = nx.from_scipy_sparse_array(X)
 
-        if nx.is_connected(G):
-            print("Graph already connected!")
-        else:
-            X, G = resolve_graph_connection(X, name, account_prop)
+            if nx.is_connected(G):
+                print("Graph already connected!")
+            else:
+                X, G = resolve_graph_connection(X, name, account_prop)
 
-        start = time.time()
-        clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
-        labels_spectral = clustering.fit_predict(X)
+            start = time.time()
+            clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+            labels_spectral = clustering.fit_predict(X)
 
-        print(labels_spectral)
+            end_spec = time.time() - start
 
-        end_spec = time.time() - start
-
-        # Convert labels to list of sets
-        partition_spectral = labels_to_partition(labels_spectral)
-        dict_cluster['spectral'][rho] = partition_spectral
+            # Convert labels to list of sets
+            partition_spectral = labels_to_partition(labels_spectral)
+            dict_cluster[technique][rho] = partition_spectral
 
     return dict_cluster
 
@@ -391,45 +381,46 @@ def internal_metrics(dict_cluster, W_matrices):
 
     return int_metrics
 
-def modularity_fscore(dict_cluster, W_matrices, account_prop):
-    int_metrics = {
-        rho: {
-            'spectral' : {}
-        } for rho in W_matrices.keys()
+def modularity_fscore(dict_cluster, results_squic, account_prop):
+    metrics = {
+        method: {
+            rho: {
+                'spectral': {}
+            } for rho in results_squic[method].keys()
+        } for method in dict_cluster.keys()
     }
-    
+
     n = len(account_prop)
     class_labels = np.array([account_prop[i]["class"] for i in range(n)])
 
-    # Make sure labels are 0/1
+    # Convert class labels to 0/1
     le = LabelEncoder()
     true_labels = le.fit_transform(class_labels)
 
-    for method, clustering_results in dict_cluster.items():
-        for l, X in W_matrices.items():
+    for method in dict_cluster:
+        for rho, partition in dict_cluster[method].items():
 
-            partition = clustering_results[l]
+            X = results_squic[method][rho]
 
-            cluster_labels = partition_to_labels(partition)
+            # Ensure matrix is in proper form
+            X = np.abs(X)  # Make positive
+            X.setdiag(0)   # Zero out diagonal
 
-            # Ensure all off-diagonal entries are positive
-            X = np.abs(X) 
-
-            # Ensure diagonal entries are zero
-            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
-
-            # G = nx.from_numpy_array(X)
             G = nx.from_scipy_sparse_array(X)
 
-            modularity = community.modularity(G, dict_cluster[method][l])
-            int_metrics[l][method]['modularity'] = float(modularity)
+            # Convert partition (list of sets) to labels
+            cluster_labels = partition_to_labels(partition, n)
 
-            # N cluster
-            int_metrics[l][method]['nCluster'] = len(partition)
+            # Compute modularity
+            mod = community.modularity(G, partition)
+            metrics[method][rho]['spectral']['modularity'] = float(mod)
 
-            # Try both mappings (identity and inverted)
-            f1 = f1_score(true_labels, cluster_labels, average='weighted')
+            # Number of clusters
+            metrics[method][rho]['spectral']['nCluster'] = len(partition)
 
-            int_metrics[l][method]['f1'] = 1 - f1
+            # Compute F1-score (test both label alignments)
+            f1 = f1_score(true_labels, 1 - cluster_labels, average='weighted')
 
-    return int_metrics
+            metrics[method][rho]['spectral']['f1'] = f1
+
+    return metrics
