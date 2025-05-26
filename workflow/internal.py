@@ -156,7 +156,7 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     data_sym = []
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, matrix=adjaceny_matrix)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
@@ -194,6 +194,156 @@ def squic_fit_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=
     return W_matrices, table_fit_norm
 
 
+def connect_isolated(X, strategy='assign_isolated', min_correlation=1e-6):
+    """
+    Handle connectivity for SQUIC correlation matrices with many isolated nodes
+    
+    Args:
+        X: SQUIC correlation matrix
+        strategy: 'assign_isolated' or 'connect_weak'
+        min_correlation: minimum correlation to add for isolated nodes
+    
+    Returns:
+        X_connected: connected adjacency matrix
+    """
+    
+    G = nx.from_numpy_array(X)
+    
+    # Find connected components
+    components = list(nx.connected_components(G))
+    main_component = max(components, key=len)
+    isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
+    
+    print(f"Main component: {len(main_component)} nodes")
+    print(f"Isolated nodes: {len(isolated_nodes)} nodes")
+    print(f"Other components: {len(components) - len(isolated_nodes) - 1}")
+    
+    X_connected = X.copy()
+    
+    if strategy == 'assign_isolated':
+        """
+        Assign isolated nodes to main component based on user type logic
+        This is best for merchant/client classification
+        """
+        print("Strategy: Assigning isolated nodes to main component")
+        
+        # Connect each isolated node to its most similar node in main component
+        for isolated_node in isolated_nodes:
+            # Find the node in main component with highest original correlation
+            # (before the sparsification that SQUIC applied)
+            best_connection = None
+            max_similarity = 0
+            
+            # Since SQUIC zeroed out weak correlations, we need to use a heuristic
+            # Connect to a representative node from main component
+            main_nodes = list(main_component)
+            
+            # Strategy: connect to the node with most connections (hub node)
+            node_degrees = [(node, G.degree(node)) for node in main_nodes]
+            hub_node = max(node_degrees, key=lambda x: x[1])[0]
+            
+            # Add weak connection to hub
+            X_connected[isolated_node, hub_node] = min_correlation
+            X_connected[hub_node, isolated_node] = min_correlation
+            
+            print(f"  Connected isolated node {isolated_node} to hub node {hub_node}")
+    
+    elif strategy == 'connect_weak':
+        """
+        Connect isolated nodes using very weak correlations
+        Preserves the sparse nature but ensures connectivity
+        """
+        print("Strategy: Adding weak connections to isolated nodes")
+        
+        for isolated_node in isolated_nodes:
+            # Connect to nearest node in main component (arbitrary but deterministic)
+            main_nodes = list(main_component)
+            # Use node index distance as a simple heuristic
+            nearest_main = min(main_nodes, key=lambda x: abs(x - isolated_node))
+            
+            X_connected[isolated_node, nearest_main] = min_correlation
+            X_connected[nearest_main, isolated_node] = min_correlation
+            
+            print(f"  Weakly connected node {isolated_node} to node {nearest_main}")
+    
+    # Handle any remaining multi-node components
+    remaining_components = [comp for comp in components 
+                          if len(comp) > 1 and comp != main_component]
+    
+    for comp in remaining_components:
+        # Connect each remaining component to main component
+        comp_nodes = list(comp)
+        main_nodes = list(main_component)
+        
+        # Find best existing connection or create weak one
+        max_weight = 0
+        best_edge = None
+        
+        for i in comp_nodes:
+            for j in main_nodes:
+                weight = max(X[i, j], X[j, i])
+                if weight > max_weight:
+                    max_weight = weight
+                    best_edge = (i, j)
+        
+        if best_edge and max_weight > 0:
+            X_connected[best_edge[0], best_edge[1]] = max_weight
+            X_connected[best_edge[1], best_edge[0]] = max_weight
+        else:
+            # Create weak connection
+            i, j = comp_nodes[0], main_nodes[0]
+            X_connected[i, j] = min_correlation
+            X_connected[j, i] = min_correlation
+        
+        print(f"  Connected component of {len(comp)} nodes to main component")
+    
+    return X_connected
+
+
+def create_connected_graph(X):
+    X_connected = connect_isolated(X, strategy='connect_weak')
+    return X_connected
+
+
+def similarity_graph(G, account_prop, X):
+    print("Using Similairty graph")
+
+    components = list(nx.connected_components(G))
+    main_component = max(components, key=len)
+    isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
+
+    print(f"Main component: {len(main_component)} nodes")
+    print(f"Isolated nodes: {len(isolated_nodes)} nodes")
+    print(f"Other components: {len(components) - len(isolated_nodes) - 1}")
+
+    n = len(account_prop)
+    class_labels = np.array([account_prop[i]["class"] for i in range(n)])
+
+    W_sim = lil_matrix((n, n))  # initialize Similarity graph as sparse matrix
+
+    # Group indices by class
+    class_to_indices = defaultdict(list)
+    for i, cls in enumerate(class_labels):
+        class_to_indices[cls].append(i)
+
+    # For each class, connect all users in that class (like block diagonal)
+    for indices in class_to_indices.values():
+        for i in indices:
+            W_sim[i, indices] = 1.0  # Vectorized row update
+
+    W_sim = W_sim.tocsr()
+
+    # Fuse X with sim graph
+    alpha = 0.8
+    X = alpha * X + (1 - alpha) * W_sim
+
+    # Normalize (unit max)
+    X = X / np.max(X)
+
+    return X
+
+
+
 def labels_to_partition(labels):
     """Convert label array [0,0,1,1,2,2] -> list of sets [{0,1},{2,3},{4,5}]"""
     clusters = {}
@@ -211,7 +361,7 @@ def labels_to_partition(labels):
     return list(clusters.values())
 
 
-def clustering(W_matrices):
+def clustering(W_matrices, name, account_prop):
     dict_cluster = {
         "louvain" : {},
         "spectral" : {},
@@ -223,10 +373,32 @@ def clustering(W_matrices):
         X = np.abs(X) 
 
         # Ensure diagonal entries are zero
-        # np.fill_diagonal(X, 0)
+        X.setdiag(0)
 
         # Create a graph from matrix X
         G = nx.from_numpy_array(X)
+
+        if nx.is_connected(G):
+            print("Graph already connected!")
+        elif name != 'PAYSIM':
+            print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
+
+            X = create_connected_graph(X)
+            G = nx.from_numpy_array(X)
+
+            print(f"Final graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+            print(f"Is connected? {nx.is_connected(G)}")
+        else: # for PAYSIM only -> use similarity graph
+
+            X = similarity_graph(G, account_prop, X)
+            G = nx.from_numpy_array(X)
+
+            if not nx.is_connected(G):
+                print("Graph still not connected after Similarity Graph")
+                X = create_connected_graph(X)
+                G = nx.from_numpy_array(X)
+            else:
+                print("Graph connected after Similarity Graph")
 
         # Louvain
         start = time.time()
