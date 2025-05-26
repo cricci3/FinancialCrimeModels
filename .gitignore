@@ -7,6 +7,7 @@ images/
 graphs/
 lambda_values.json
 *.R
+*.m
 
 playground/squic_folder/*.npz
 playground/squic_folder/*.json
