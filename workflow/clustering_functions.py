@@ -12,6 +12,9 @@ import time
 from scipy.sparse import lil_matrix
 from collections import defaultdict
 
+from workflow.SQUIC_functions import print_matrix
+import matplotlib.pyplot as plt
+
 
 def connect_isolated(X, min_correlation=1e-6):
     """
@@ -279,9 +282,6 @@ def clustering(W_matrices, name, account_prop):
 
 def clustering_2_communities(results_squic, name, account_prop):
     dict_cluster = {
-        "squic" : {},
-        "squic-matrix" : {},
-        "squic-fit" : {},
         "squic-fit-matrix" : {}
     }
 
@@ -302,6 +302,13 @@ def clustering_2_communities(results_squic, name, account_prop):
                 X, G = resolve_graph_connection(X, name, account_prop)
 
             start = time.time()
+            # assign labels: The strategy to use to assign labels in the embedding space.
+            # There are three ways to assign labels after the Laplacian embedding.
+            # - k-means can be applied and is a popular choice. But it can also be sensitive to initialization.
+            # - Discretization is another approach which is less sensitive to random initialization
+            # - The cluster_qr method directly extracts clusters from eigenvectors in spectral clustering.
+            #      In contrast to k-means and discretization, cluster_qr has no tuning parameters and is not an iterative method,
+            #      yet may outperform k-means and discretization in terms of both quality and speed.
             clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
             labels_spectral = clustering.fit_predict(X)
 
@@ -413,14 +420,64 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
 
             # Compute modularity
             mod = community.modularity(G, partition)
-            metrics[method][rho]['spectral']['modularity'] = float(mod)
+            metrics[method][rho]['spectral']['modularity'] = round(float(mod), 4)
 
             # Number of clusters
             metrics[method][rho]['spectral']['nCluster'] = len(partition)
 
             # Compute F1-score (test both label alignments)
-            f1 = f1_score(true_labels, 1 - cluster_labels, average='weighted')
+            f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
+            f1b = f1_score(true_labels, cluster_labels, average='weighted')
+
+            f1 = max(f1a, f1b)
 
             metrics[method][rho]['spectral']['f1'] = f1
 
     return metrics
+
+
+def plot_Q_f1(metrics_dict):
+    methods = ['squic-fit-matrix']
+    colors = {
+        'squic-fit-matrix': 'tab:orange'
+    }
+
+    fig, ax1 = plt.subplots(figsize=(6, 6))
+    ax2 = ax1.twinx()
+
+    for method in methods:
+
+        rhos = sorted(metrics_dict[method].keys())
+        Q_values = []
+        F1_values = []
+        valid_rhos = []
+
+        for rho in rhos:
+            metrics = metrics_dict[method][rho].get('spectral', {})
+            Q = metrics.get('modularity', None)
+            f1 = metrics.get('f1', None)
+            Q_values.append(Q)
+            F1_values.append(f1)
+            valid_rhos.append(rho)
+
+        color = colors[method]
+
+        # Modularity Q — dotted line
+        ax1.plot(valid_rhos, Q_values, linestyle='dotted', marker='o', color=color, label=f'{method} Q')
+
+        # F1-score — solid line
+        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color=color, label=f'{method} F1')
+
+    # Axis labels
+    ax1.set_xlabel("lambda")
+    ax1.set_ylabel("Modularity Q", color='black')
+    ax2.set_ylabel("F1 Score", color='black')
+
+    # Legends
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+
+    fig.tight_layout()
+    plt.grid(True)
+    plt.show()
