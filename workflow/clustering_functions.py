@@ -299,7 +299,19 @@ def clustering_2_communities(results_squic, name, account_prop):
             if nx.is_connected(G):
                 print("Graph already connected!")
             else:
-                X, G = resolve_graph_connection(X, name, account_prop)
+                print("Graph not connected")
+                components = list(nx.connected_components(G))
+                main_component = max(components, key=len)
+                isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
+                
+                print(f"Main component: {len(main_component)} nodes")
+                print(f"Isolated nodes: {len(isolated_nodes)} nodes")
+                print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
+                
+                if len(isolated_nodes) > 0:
+                    print(isolated_nodes)
+                    print()
+                # X, G = resolve_graph_connection(X, name, account_prop)
 
             start = time.time()
             # assign labels: The strategy to use to assign labels in the embedding space.
@@ -431,7 +443,7 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
 
             f1 = max(f1a, f1b)
 
-            metrics[method][rho]['spectral']['f1'] = f1
+            metrics[method][rho]['spectral']['f1'] = round(f1, 2)
 
     return metrics
 
@@ -463,10 +475,10 @@ def plot_Q_f1(metrics_dict):
         color = colors[method]
 
         # Modularity Q — dotted line
-        ax1.plot(valid_rhos, Q_values, linestyle='dotted', marker='o', color=color, label=f'{method} Q')
+        ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color='orange', label=f'{method} Q')
 
         # F1-score — solid line
-        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color=color, label=f'{method} F1')
+        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'{method} F1')
 
     # Axis labels
     ax1.set_xlabel("lambda")

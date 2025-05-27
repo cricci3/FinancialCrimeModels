@@ -7,6 +7,7 @@ import seaborn as sns
 import json
 import numpy as np
 
+from sklearn.neighbors import NearestNeighbors
 import networkx as nx
 from cosmograph import cosmo
 
@@ -101,6 +102,37 @@ def extract_timeseries(df, name):
     plt.tight_layout()
     plt.show()
     
+
+def knn_graph(trans_matrix):
+    similarity = trans_matrix + trans_matrix.T  # make it symmetrical
+
+    # from transaction matrix to distance matrix (the high the amount the closer the points)
+    # distance(i, j) = 1 / (1 + similarity(i, j))
+    similarity_coo = similarity.tocoo()
+    distance_data = 1.0 / (1.0 + similarity_coo.data)
+    distance_matrix = csr_matrix((distance_data, (similarity_coo.row, similarity_coo.col)), shape=similarity.shape)
+
+    n_neighbors = 3
+    # 3 for 100
+    # 2 for 1K
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='precomputed')
+    nbrs.fit(distance_matrix)
+    knn_graph = nbrs.kneighbors_graph(distance_matrix, mode='connectivity')  # binary adjacency matrix
+
+    print(knn_graph)
+
+    # make it symmetric
+    knn_graph = knn_graph.maximum(knn_graph.T)
+
+    # Use knn_graph as a mask to extract similarity values: we want to return a similarity matrix, not the distance or binary kNN mask
+    similarity_knn = similarity.multiply(knn_graph)
+
+    similarity_knn.tocsr()
+
+    print(f"knn graph \n {similarity_knn}")
+
+    return knn_graph
+
 
 def normalization(df, name):
     Y = df.T.values  # Convert to (users, days)
