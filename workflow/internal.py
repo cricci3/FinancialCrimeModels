@@ -112,7 +112,7 @@ def knn_graph(trans_matrix):
     distance_data = 1.0 / (1.0 + similarity_coo.data)
     distance_matrix = csr_matrix((distance_data, (similarity_coo.row, similarity_coo.col)), shape=similarity.shape)
 
-    n_neighbors = 3
+    n_neighbors = 2
     # 3 for 100
     # 2 for 1K
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='precomputed')
