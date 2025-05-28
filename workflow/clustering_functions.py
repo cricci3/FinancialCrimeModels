@@ -10,6 +10,7 @@ from tqdm import tqdm
 import time
 
 from scipy.sparse import lil_matrix
+from scipy.sparse.csgraph import connected_components
 from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
@@ -86,6 +87,47 @@ def connect_isolated(X, min_correlation=1e-6):
     return X_connected
 
 
+def connect_components_softly(X):
+    X = X.tolil()
+
+    n_components, labels = connected_components(csgraph=X, directed=False, return_labels=True)
+    if n_components <= 1:
+        return X.tocsr()
+    
+    # Identify isolated nodes (degree 0)
+    isolated_nodes = [i for i in range(X.shape[0]) if X.rows[i] == []]
+
+    if not isolated_nodes:
+        return X.tocsr()
+
+    # Find minimum non-zero value for weak connection
+    min_val = X.data[0][0]
+    for row in X.data:
+        if row:
+            min_val = min(min_val, min(row))
+    min_val = min_val if min_val > 0 else 1e-6
+
+    # For each isolated node, find its most similar node (based on X row)
+    for node in isolated_nodes:
+        # Search in the full matrix (sparse row)
+        row = X.getrow(node).tocoo()
+        # fallback: connect to the first non-isolated node with nonzero connection
+        best_score = -1
+        best_neighbor = None
+        for j in range(X.shape[0]):
+            if j == node or j in isolated_nodes:
+                continue
+            score = X[j, node]
+            if score > best_score:
+                best_score = score
+                best_neighbor = j
+        if best_neighbor is not None:
+            X[node, best_neighbor] = min_val
+            X[best_neighbor, node] = min_val
+
+    return X.tocsr()
+
+
 def similarity_graph(G, account_prop, X):
     '''
     Use the "class" from account_prop to build a class-based similarity matrix and then merge with matrix
@@ -132,35 +174,39 @@ def similarity_graph(G, account_prop, X):
     return X
 
 
-def resolve_graph_connection(X, name, account_prop):
-    # if graph not connected, user Similairty Graph for paysim, other technique for AMLSIM/Libra
-    G = nx.from_scipy_sparse_array(X)
+# def resolve_graph_connection(X, name, account_prop):
+#     # if graph not connected, user Similairty Graph for paysim, other technique for AMLSIM/Libra
+#     G = nx.from_scipy_sparse_array(X)
 
-    if name != 'PAYSIM':
-        while not nx.is_connected(G):
-            print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
+#     # if name != 'PAYSIM':
+#     #     # while not nx.is_connected(G):
+#     #     #     print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
 
-            X = connect_isolated(X)
-            G = nx.from_scipy_sparse_array(X)
+#     #     #     X = connect_isolated(X)
+#     #     #     G = nx.from_scipy_sparse_array(X)
 
-            print(f"Is connected? {nx.is_connected(G)}")
+#     #     #     print(f"Is connected? {nx.is_connected(G)}")
+#     #     X = connect_components_softly(X)
 
-    else: # for PAYSIM only -> use similarity graph
-        print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
+#     # else: # for PAYSIM only -> use similarity graph
+#     #     # print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
 
-        X = similarity_graph(G, account_prop, X)
-        G = nx.from_scipy_sparse_array(X)
+#     #     # X = similarity_graph(G, account_prop, X)
+#     #     # G = nx.from_scipy_sparse_array(X)
 
-        if not nx.is_connected(G):
-            while not nx.is_connected(G):
-                print("Graph still not connected after Similarity Graph")
-                X = connect_isolated(X)
-                G = nx.from_scipy_sparse_array(X)
-            print("Graph connected")
-        else:
-            print("Graph connected after Similarity Graph")
+#     #     # if not nx.is_connected(G):
+#     #     #     while not nx.is_connected(G):
+#     #     #         print("Graph still not connected after Similarity Graph")
+#     #     #         X = connect_isolated(X)
+#     #     #         G = nx.from_scipy_sparse_array(X)
+#     #     #     print("Graph connected")
+#     #     # else:
+#     #     #     print("Graph connected after Similarity Graph")
+#         # X = connect_components_softly(X)
+#     X = connect_components_softly(X)
+#     G = nx.from_scipy_sparse_array(X)
 
-    return X, G
+#     return X, G
 
 
 def labels_to_partition(labels):
@@ -296,22 +342,29 @@ def clustering_2_communities(results_squic, name, account_prop):
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            if nx.is_connected(G):
-                print("Graph already connected!")
-            else:
-                print("Graph not connected")
-                components = list(nx.connected_components(G))
-                main_component = max(components, key=len)
-                isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
+            # while not nx.is_connected(G):
+            #     print(f"for rho {rho} graph is connected {nx.is_connected(G)}")
+            #     X = connect_components_softly(X)            
+            #     G = nx.from_scipy_sparse_array(X)
+            print(f"for rho {rho} graph is connected {nx.is_connected(G)}")
+
+            # while not nx.is_connected(G):
+            #     print(f"For rho {rho} graph not connected")
+            #     components = list(nx.connected_components(G))
+            #     main_component = max(components, key=len)
+            #     isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
                 
-                print(f"Main component: {len(main_component)} nodes")
-                print(f"Isolated nodes: {len(isolated_nodes)} nodes")
-                print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
+            #     # print(f"Main component: {len(main_component)} nodes")
+            #     # print(f"Isolated nodes: {len(isolated_nodes)} nodes")
+            #     # print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
                 
-                if len(isolated_nodes) > 0:
-                    print(isolated_nodes)
-                    print()
-                # X, G = resolve_graph_connection(X, name, account_prop)
+            #     # if len(isolated_nodes) > 0:
+            #     #     print(isolated_nodes)
+            #     #     print()
+
+            #     G = nx.from_scipy_sparse_array(X)
+
+            # print(f"For rho {rho}, now graph is connected")
 
             start = time.time()
             # assign labels: The strategy to use to assign labels in the embedding space.
@@ -475,10 +528,10 @@ def plot_Q_f1(metrics_dict):
         color = colors[method]
 
         # Modularity Q — dotted line
-        ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color='orange', label=f'{method} Q')
+        ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color='orange', label=f'Q')
 
         # F1-score — solid line
-        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'{method} F1')
+        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
 
     # Axis labels
     ax1.set_xlabel("lambda")
