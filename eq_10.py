@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     optimal_k, eigenvectors = find_optimal_clusters(graph)
 
-    labels = compute_spectral_clustering(eigenvectors, optimal_k)
+    labels = compute_spectral_clustering(eigenvectors, optimal_k, method='hierarchical')
 
     print(labels)
 

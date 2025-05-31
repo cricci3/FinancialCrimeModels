@@ -6,6 +6,7 @@ from scipy.linalg import eigh
 import networkx as nx
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
 
 
 def compute_normalized_laplacian(adj):
@@ -131,12 +132,25 @@ def find_optimal_clusters(graph, plot=True):
     return optimal_k, eigenvectors
 
 
-def compute_spectral_clustering(eigenvectors, optimal_k):
+def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans'):
     selected_eigenvectors = eigenvectors[:, :optimal_k]
-
     X_normalized = normalize(selected_eigenvectors, norm='l2')
+    
+    if method == 'kmeans':
+        kmeans = KMeans(n_clusters=optimal_k, random_state=42)
+        labels = kmeans.fit_predict(X_normalized)
 
-    kmeans = KMeans(n_clusters=optimal_k, random_state=42)
-    labels = kmeans.fit_predict(X_normalized)
+    elif method == 'hierarchical':
+        # Use Ward’s method, single-link, complete-link, etc.
+        Z = linkage(X_normalized, method='ward')
+
+        # Plot dendrogram (optional)
+        plt.figure(figsize=(10, 5))
+        dendrogram(Z)
+        plt.title("Dendrogram of Spectral Embedding")
+        plt.show()
+
+        # Choose a cut level, e.g., fcluster with t=optimal_k clusters:
+        labels = fcluster(Z, t=optimal_k, criterion='maxclust')
 
     return labels
