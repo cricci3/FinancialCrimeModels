@@ -348,7 +348,9 @@ def clustering_optimal_number(W_matrices):
         # Create a graph from matrix X
         G = nx.from_scipy_sparse_array(X)
 
-        print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}")
+        print()
+        print("=======================================================")
+        print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}\n")
 
         # Louvain
         start = time.time()

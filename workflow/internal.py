@@ -138,14 +138,20 @@ def normalization(df, name):
     Y = df.T.values  # Convert to (users, days)
 
     if name == 'AMLSIM':
-        # normalize the Y input data to achieve unit variance
-        Y_new = np.diag(1/np.std(Y,1)) @ Y # each row of Y is scaled by the inverse of its standard deviation
+        # Compute std dev per row
+        row_std = np.std(Y, axis=1, keepdims=True)
+        # Avoid division by zero
+        row_std[row_std == 0] = 1.0
+        # Normalize each row
+        Y_new = Y / row_std
         return Y_new
+    
     elif name == 'PAYSIM':
         stds = np.std(Y, axis=1)
         safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
         Y_new = np.diag(1 / safe_stds) @ Y
         return Y_new
+    
     elif name == 'LIBRA':
         return Y
 
