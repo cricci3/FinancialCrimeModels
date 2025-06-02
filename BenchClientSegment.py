@@ -19,7 +19,7 @@ if __name__ == '__main__':
     W_matrices, _ = squic_fit_computation(Y_new, name, dimension, trans_matrix, printMatrix=True)
     
     # Use the extracted W for clustering
-    dict_cluster = clustering(W_matrices)
+    dict_cluster = clustering_same_n(W_matrices)
 
     # Report internal metrics on the clustering
     int_metrics = internal_metrics(dict_cluster, W_matrices)
