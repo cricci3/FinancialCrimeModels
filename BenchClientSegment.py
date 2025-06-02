@@ -1,4 +1,5 @@
 from workflow.internal import *
+from workflow.clustering_functions import *
 
 
 if __name__ == '__main__':
@@ -6,7 +7,7 @@ if __name__ == '__main__':
     Y, name, dimension, account_prop, trans_matrix = load_dataset()
 
     # Extract time series
-    # extract_timeseries(Y, name)
+    extract_timeseries(Y, name)
 
     # Normalise time series
     Y_new = normalization(Y, name)

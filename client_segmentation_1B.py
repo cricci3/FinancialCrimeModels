@@ -13,7 +13,7 @@ if __name__ == '__main__':
     Y_new = normalization(Y, name)
 
     # Run SQUIC_fit
-    W_matrices = squic_fit_matrix_computation(Y_new, name, dimension, trans_matrix, printMatrix=False)
+    W_matrices = squic_fit_matrix_computation(Y_new, name, dimension, trans_matrix, printMatrix=True)
 
     # Use the extracted W for clustering
     dict_cluster = clustering_optimal_number(W_matrices)
