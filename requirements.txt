@@ -8,3 +8,5 @@ tabulate
 seaborn
 tqdm
 squic
+igraph
+leidenalg

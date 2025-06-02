@@ -15,6 +15,9 @@ from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
+from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering
+import igraph as ig
+import leidenalg as la
 
 
 def connect_isolated(X, min_correlation=1e-6):
@@ -235,7 +238,7 @@ def partition_to_labels(partition, n_nodes):
     return labels
 
 
-def clustering(W_matrices, name, account_prop):
+def clustering_same_n(W_matrices, name, account_prop):
     dict_cluster = {
         "louvain" : {},
         "spectral" : {},
@@ -252,10 +255,12 @@ def clustering(W_matrices, name, account_prop):
         # Create a graph from matrix X
         G = nx.from_scipy_sparse_array(X)
 
-        if nx.is_connected(G):
-            print("Graph already connected!")
-        else:
-            X, G = resolve_graph_connection(X, name, account_prop)
+        # if nx.is_connected(G):
+        #     print("Graph already connected!")
+        # else:
+        #     X, G = resolve_graph_connection(X, name, account_prop)
+
+        print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}")
 
         # Louvain
         start = time.time()
@@ -325,6 +330,106 @@ def clustering(W_matrices, name, account_prop):
     
     return dict_cluster
 
+def clustering_optimal_number(W_matrices):
+    dict_cluster = {
+        "louvain" : {},
+        "spectral" : {},
+        "dbscan" : {},
+        "leiden" : {}
+    }
+
+    for rho, X in W_matrices.items():
+        # Ensure all off-diagonal entries are positive
+        X = np.abs(X) 
+
+        # Ensure diagonal entries are zero
+        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+
+        # Create a graph from matrix X
+        G = nx.from_scipy_sparse_array(X)
+
+        print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}")
+
+        # Louvain
+        start = time.time()
+        partition_louvain = community.louvain_communities(G)
+        end_louv = time.time() - start
+        dict_cluster['louvain'][rho] = partition_louvain
+
+        # Leiden
+        start = time.time()
+        G_igraph = ig.Graph.from_networkx(G)
+        partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
+        end_leiden = time.time() - start
+        dict_cluster['leiden'][rho] = partition_leiden
+
+        # DBSCAN with multiple params
+        best_Q = -1
+        best_params = None
+
+        eps_range = np.linspace(0.1, 2.0, 20)
+        min_samples_range = range(3, 10)
+
+        eps_range = np.linspace(0.1, 2.0, 20)
+        min_samples_range = range(3, 10)
+
+        print(f"Trying different params for DBSCAN for lambda = {rho}")
+        start = time.time()
+        for eps in tqdm(eps_range):
+            for min_samples in min_samples_range:
+                dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                labels = dbscan.fit_predict(X)
+                
+                # Ignore if all points are noise (-1) or single cluster
+                if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                    continue
+
+                partition_dbscan = labels_to_partition(labels)
+
+                # compute Q to evaluate
+                db_Q = community.modularity(G, partition_dbscan)
+                if db_Q > best_Q:
+                    best_Q = db_Q
+                    best_params = (eps, min_samples)
+
+        if best_params is not None:
+            dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
+        else:
+            print("No suitable DBSCAN parameters found! DBSCAN with default params")
+            dbscan = DBSCAN()
+
+        labels_dbscan = dbscan.fit_predict(X)
+        end_db = time.time() - start
+
+        # Convert labels to list of sets
+        partition_dbscan = labels_to_partition(labels_dbscan)
+        dict_cluster['dbscan'][rho] = partition_dbscan
+
+        # Use n_cluster = len(partitionin louvain)
+        start = time.time()
+        optimal_k, eigenvectors = find_optimal_clusters(G, plot=False)
+        labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='hierarchical', plot=False)
+        end_spec = time.time() - start
+
+        # Convert labels to list of sets
+        partition_spectral = labels_to_partition(labels_spectral)
+
+        dict_cluster['spectral'][rho] = partition_spectral
+
+        print(f"For rho {rho}: ")
+
+        print(f"Number of louvain cluster is {len(partition_louvain)}")
+        print(f"Number of leiden cluster is {len(partition_leiden)}")
+        print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
+        print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
+
+        print(f"Time for Louvain -> {end_louv}")
+        print(f"Time for Leiden -> {end_leiden}")
+        print(f"Time for DBSCAN -> {end_db}")
+        print(f"Time for Spectral -> {end_spec}\n")
+    
+    return dict_cluster
+
 
 def clustering_2_communities(results_squic, name, account_prop):
     dict_cluster = {
@@ -386,18 +491,27 @@ def clustering_2_communities(results_squic, name, account_prop):
     return dict_cluster
 
 
-def internal_metrics(dict_cluster, W_matrices):
-    int_metrics = {
-        rho: {
-            'louvain' : {},
-            'dbscan' : {},
-            'spectral' : {}
-        } for rho in W_matrices.keys()
-    }
+def internal_metrics(dict_cluster, W_matrices, leiden=False):
+    if leiden == False:
+        int_metrics = {
+            rho: {
+                'louvain' : {},
+                'dbscan' : {},
+                'spectral' : {}
+            } for rho in W_matrices.keys()
+        }
+    else:
+        int_metrics = {
+            rho: {
+                'louvain' : {},
+                'leiden' : {},
+                'dbscan' : {},
+                'spectral' : {},
+            } for rho in W_matrices.keys()
+        }
 
     for method, clustering_results in dict_cluster.items():
         for l, X in W_matrices.items():
-
             partition = clustering_results[l]
 
             # Ensure all off-diagonal entries are positive
@@ -452,6 +566,7 @@ def internal_metrics(dict_cluster, W_matrices):
             int_metrics[l][method]['nCluster'] = len(partition)
 
     return int_metrics
+
 
 def modularity_fscore(dict_cluster, results_squic, account_prop):
     metrics = {
