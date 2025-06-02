@@ -132,7 +132,7 @@ def find_optimal_clusters(graph, plot=True):
     return optimal_k, eigenvectors
 
 
-def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans'):
+def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False):
     selected_eigenvectors = eigenvectors[:, :optimal_k]
     X_normalized = normalize(selected_eigenvectors, norm='l2')
     
@@ -144,11 +144,12 @@ def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans'):
         # Use Ward’s method, single-link, complete-link, etc.
         Z = linkage(X_normalized, method='ward')
 
-        # Plot dendrogram (optional)
-        plt.figure(figsize=(10, 5))
-        dendrogram(Z)
-        plt.title("Dendrogram of Spectral Embedding")
-        plt.show()
+        if plot == True:
+            # Plot dendrogram (optional)
+            plt.figure(figsize=(10, 5))
+            dendrogram(Z)
+            plt.title("Dendrogram of Spectral Embedding")
+            plt.show()
 
         # Choose a cut level, e.g., fcluster with t=optimal_k clusters:
         labels = fcluster(Z, t=optimal_k, criterion='maxclust')
