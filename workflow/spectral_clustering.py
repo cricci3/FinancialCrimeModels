@@ -37,8 +37,10 @@ def compute_eigenvalues(laplacian_matrix):
     """
     Compute the smallest k eigenvalues of the Laplacian matrix (sparse).
     """
-    n = laplacian_matrix.shape[0]
-    k = n - 1  # eigsh cannot compute more than n-1 eigenvalues
+    n = laplacian_matrix.shape[0] # eigsh cannot compute more than n-1 eigenvalues
+    k_max = 20
+
+    k = min(n-2, k_max)
 
     # If small enough, dense fallback
     # if n <= 500:  # you can adjust this threshold

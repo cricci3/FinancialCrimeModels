@@ -15,7 +15,7 @@ from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
-from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering
+from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues
 import igraph as ig
 import leidenalg as la
 
@@ -433,7 +433,12 @@ def clustering_optimal_number(W_matrices):
     return dict_cluster
 
 
-def clustering_2_communities(results_squic, name, account_prop):
+def clustering_2_communities(results_squic, method='scikit-learn'):
+    '''
+    if method='scikit-learn' use spectral clustering of this lib
+    else use spectral clustering implemented in spectral_clustering.py file
+    '''
+
     dict_cluster = {
         "squic-fit-matrix" : {}
     }
@@ -449,42 +454,28 @@ def clustering_2_communities(results_squic, name, account_prop):
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            # while not nx.is_connected(G):
-            #     print(f"for rho {rho} graph is connected {nx.is_connected(G)}")
-            #     X = connect_components_softly(X)            
-            #     G = nx.from_scipy_sparse_array(X)
             print(f"for rho {rho} graph is connected {nx.is_connected(G)}")
 
-            # while not nx.is_connected(G):
-            #     print(f"For rho {rho} graph not connected")
-            #     components = list(nx.connected_components(G))
-            #     main_component = max(components, key=len)
-            #     isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
+            if not nx.is_connected(G):
+                components = list(nx.connected_components(G))
+                main_component = max(components, key=len)
+                isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
                 
-            #     # print(f"Main component: {len(main_component)} nodes")
-            #     # print(f"Isolated nodes: {len(isolated_nodes)} nodes")
-            #     # print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
+                print(f"Main component: {len(main_component)} nodes")
+                print(f"Isolated nodes: {len(isolated_nodes)} nodes")
+                print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
                 
-            #     # if len(isolated_nodes) > 0:
-            #     #     print(isolated_nodes)
-            #     #     print()
-
-            #     G = nx.from_scipy_sparse_array(X)
-
-            # print(f"For rho {rho}, now graph is connected")
-
-            start = time.time()
-            # assign labels: The strategy to use to assign labels in the embedding space.
-            # There are three ways to assign labels after the Laplacian embedding.
-            # - k-means can be applied and is a popular choice. But it can also be sensitive to initialization.
-            # - Discretization is another approach which is less sensitive to random initialization
-            # - The cluster_qr method directly extracts clusters from eigenvectors in spectral clustering.
-            #      In contrast to k-means and discretization, cluster_qr has no tuning parameters and is not an iterative method,
-            #      yet may outperform k-means and discretization in terms of both quality and speed.
-            clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
-            labels_spectral = clustering.fit_predict(X)
-
-            end_spec = time.time() - start
+                # if len(isolated_nodes) > 0:
+                #     print(isolated_nodes)
+                #     print()
+            
+            if method == 'scikit-learn':
+                clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+                labels_spectral = clustering.fit_predict(X)
+            elif method == 'implemented':
+                L_norm = compute_normalized_laplacian(X)
+                _, eigenvectors = compute_eigenvalues(L_norm)
+                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
 
             # Convert labels to list of sets
             partition_spectral = labels_to_partition(labels_spectral)
@@ -602,7 +593,7 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
 
             # Compute modularity
             mod = community.modularity(G, partition)
-            metrics[method][rho]['spectral']['modularity'] = round(float(mod), 4)
+            metrics[method][rho]['spectral']['modularity'] = round(float(mod), 2)
 
             # Number of clusters
             metrics[method][rho]['spectral']['nCluster'] = len(partition)
