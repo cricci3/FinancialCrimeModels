@@ -101,7 +101,7 @@ def AMLSim_preprocessing(dimension):
 
 
 def PaySim_preprocessing(dimension):
-    max_steps=265
+    max_steps=365
 
     account_prop = {}
 
