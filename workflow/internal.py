@@ -2,6 +2,7 @@ from workflow.preprocess import *
 from workflow.SQUIC_functions import *
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D  # for custom legend
 import seaborn as sns
 
 import json
@@ -72,16 +73,31 @@ def extract_timeseries(df, name):
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(7,7))
 
+    colors = {'Clients': 'mediumseagreen', 
+              'Bank': 'crimson', 
+              'Merchants': 'darkturquoise'}
+
     if name == 'PAYSIM':
         # Plot each column (account balance) as a line
         for user in df.columns:
             if user.startswith('C'):
-                color = 'mediumseagreen'
+                color = colors['Clients']
             elif user.startswith('B'):
-                color = 'crimson'
+                color = colors['Bank']
             else:
-                color = 'darkturquoise'
-            plt.plot(df.index, df[user], color=color, label=f"User {user}", alpha=0.6)
+                color = colors['Merchants']
+            plt.plot(df.index, df[user], color=color, alpha=0.6)
+        
+        plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
+    
+
+        legend_elements = [
+            Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
+            Line2D([0], [0], color='crimson', lw=4, label='Bank'),
+            Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
+        ]
+
+        plt.legend(handles=legend_elements, fontsize=16)
     
     else:
         # Plot each column (account balance) as a line
