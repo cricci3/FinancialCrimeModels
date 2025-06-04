@@ -37,22 +37,7 @@ def compute_eigenvalues(laplacian_matrix):
     """
     Compute the smallest k eigenvalues of the Laplacian matrix (sparse).
     """
-    n = laplacian_matrix.shape[0] # eigsh cannot compute more than n-1 eigenvalues
-    k_max = 20
-
-    k = min(n-2, k_max)
-
-    # If small enough, dense fallback
-    # if n <= 500:  # you can adjust this threshold
-    #     dense_L = laplacian_matrix.toarray()
-    #     eigenvalues = eigh(dense_L, eigvals_only=True)
-    # else:
-    #     # Sparse: compute k smallest eigenvalues
-    #     try:
-    #         eigenvalues, eigenvectors = eigsh(laplacian_matrix, k=k, which='SM')
-    #         eigenvalues = np.sort(eigenvalues)
-    #     except Exception as e:
-    #         raise RuntimeError(f"Sparse eigenvalue computation failed: {e}")
+    k = 20
 
     eigenvalues, eigenvectors = eigsh(laplacian_matrix, k=k, which='SM')
     eigenvalues = np.sort(eigenvalues)
@@ -86,11 +71,10 @@ def find_optimal_clusters(graph, plot=True):
     Find the optimal number of clusters using relative eigengap analysis.
     Input graph: sparse adjacency matrix (csr_matrix) or NetworkX graph.
     """
-    # Convert NetworkX graph to sparse adjacency matrix if needed
     if isinstance(graph, nx.Graph):
         adjacency_matrix = nx.to_scipy_sparse_array(graph, format='csr')
     else:
-        adjacency_matrix = graph  # assume already sparse
+        adjacency_matrix = graph 
 
     # Compute normalized Laplacian
     L_norm = compute_normalized_laplacian(adjacency_matrix)
@@ -106,7 +90,7 @@ def find_optimal_clusters(graph, plot=True):
         print(f"len(relative_eigengaps) > 0 : True")
         optimal_k = k_values[np.argmax(relative_eigengaps)]
     else:
-        optimal_k = 2  # default fallback
+        optimal_k = 2  # default
 
     if plot:
         plt.figure(figsize=(12, 5))
@@ -143,7 +127,6 @@ def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=F
         labels = kmeans.fit_predict(X_normalized)
 
     elif method == 'hierarchical':
-        # Use Ward’s method, single-link, complete-link, etc.
         Z = linkage(X_normalized, method='ward')
 
         if plot == True:
@@ -153,7 +136,6 @@ def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=F
             plt.title("Dendrogram of Spectral Embedding")
             plt.show()
 
-        # Choose a cut level, e.g., fcluster with t=optimal_k clusters:
         labels = fcluster(Z, t=optimal_k, criterion='maxclust')
 
     return labels
