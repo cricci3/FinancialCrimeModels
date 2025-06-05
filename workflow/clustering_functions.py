@@ -4,7 +4,7 @@ import networkx as nx
 from networkx.algorithms import community
 from sklearn.cluster import DBSCAN, SpectralClustering
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, adjusted_rand_score
 
 from tqdm import tqdm
 import time
@@ -609,6 +609,58 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
     return metrics
 
 
+def ARI_fscore(dict_cluster, results_squic, account_prop):
+    metrics = {
+        method: {
+            rho: {
+                'spectral': {}
+            } for rho in results_squic[method].keys()
+        } for method in dict_cluster.keys()
+    }
+
+    n = len(account_prop)
+    class_labels = np.array([account_prop[i]["class"] for i in range(n)])
+
+    # Convert class labels to 0/1
+    le = LabelEncoder()
+    true_labels = le.fit_transform(class_labels)
+
+    for method in dict_cluster:
+        for rho, partition in dict_cluster[method].items():
+
+            X = results_squic[method][rho]
+
+            # Ensure matrix is in proper form
+            X = np.abs(X)  # Make positive
+            X.setdiag(0)   # Zero out diagonal
+
+            G = nx.from_scipy_sparse_array(X)
+
+            # Convert partition (list of sets) to labels
+            cluster_labels = partition_to_labels(partition, n)
+
+            # print(f"\nfor rho {rho}: true labels and then cluster labels")
+            # print(true_labels)
+            # print(cluster_labels)
+
+            # Number of clusters
+            metrics[method][rho]['spectral']['nCluster'] = len(partition)
+
+            # Compute ARI
+            ari = adjusted_rand_score(true_labels, cluster_labels)
+            metrics[method][rho]['spectral']['ARI'] = round(ari, 2)
+
+            # Compute ARI score (test both label alignments)
+            f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
+            f1b = f1_score(true_labels, cluster_labels, average='weighted')
+
+            f1 = max(f1a, f1b)
+
+            metrics[method][rho]['spectral']['f1'] = round(f1, 2)
+
+    return metrics
+
+
 def plot_Q_f1(metrics_dict):
     methods = ['squic-fit-matrix']
     colors = {
@@ -644,6 +696,53 @@ def plot_Q_f1(metrics_dict):
     # Axis labels
     ax1.set_xlabel("lambda")
     ax1.set_ylabel("Modularity Q", color='black')
+    ax2.set_ylabel("F1 Score", color='black')
+
+    # Legends
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+
+    fig.tight_layout()
+    plt.grid(True)
+    plt.show()
+
+
+def plot_ARI_f1(metrics_dict):
+    methods = ['squic-fit-matrix']
+    colors = {
+        'squic-fit-matrix': 'tab:orange'
+    }
+
+    fig, ax1 = plt.subplots(figsize=(6, 6))
+    ax2 = ax1.twinx()
+
+    for method in methods:
+
+        rhos = sorted(metrics_dict[method].keys())
+        ARI_values = []
+        F1_values = []
+        valid_rhos = []
+
+        for rho in rhos:
+            metrics = metrics_dict[method][rho].get('spectral', {})
+            ari = metrics.get('ARI', None)
+            f1 = metrics.get('f1', None)
+            ARI_values.append(ari)
+            F1_values.append(f1)
+            valid_rhos.append(rho)
+
+        color = colors[method]
+
+        # Modularity Q — dotted line
+        ax1.plot(valid_rhos, ARI_values, linestyle='dashed', marker='o', color='orange', label=f'ARI')
+
+        # F1-score — solid line
+        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
+
+    # Axis labels
+    ax1.set_xlabel("lambda")
+    ax1.set_ylabel("ARI", color='black')
     ax2.set_ylabel("F1 Score", color='black')
 
     # Legends

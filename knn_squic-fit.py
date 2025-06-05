@@ -1,17 +1,10 @@
 from workflow.internal import load_dataset, knn_graph, normalization, visualize_metrics, extract_timeseries
-from workflow.SQUIC_functions import squic_fit_matrix_computation
-from workflow.clustering_functions import clustering_2_communities, modularity_fscore, plot_Q_f1, labels_to_partition, partition_to_labels
-from scipy.sparse import csr_matrix
-import numpy as np
+from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
+from workflow.clustering_functions import clustering_2_communities, modularity_fscore, ARI_fscore, plot_ARI_f1, labels_to_partition, partition_to_labels
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from sklearn.cluster import SpectralClustering
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import f1_score
 from sklearn.neighbors import NearestNeighbors
-
-from networkx.algorithms import community
 
 
 if __name__ == '__main__':
@@ -24,10 +17,10 @@ if __name__ == '__main__':
     # Normalise time series
     Y_norm = normalization(Y, name)
 
-    n_neighbors = 20
+    n_neighbors = 7
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1, metric='euclidean', n_jobs=-1)
     nbrs.fit(Y_norm)
-    knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
+    knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity') # sparse matrix
 
     G_knn = nx.from_scipy_sparse_array(knn_matrix)
 
@@ -56,15 +49,16 @@ if __name__ == '__main__':
     results_squic = {}
 
     # Run SQUIC_fit
-    results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix=True)
+    results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix=False)
+    # results_squic['squic-fit-matrix'] = squic_fit_computation(Y_norm, name, dimension, printMatrix=True)
 
     dict_cluster = clustering_2_communities(results_squic, method='implemented')
 
-    metrics = modularity_fscore(dict_cluster, results_squic, account_prop)
+    metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
     for _, data in metrics.items():
         for rho, results in data.items():
             print(f"for rho = {rho} : {results}")
 
-    plot_Q_f1(metrics)
+    plot_ARI_f1(metrics)
     
