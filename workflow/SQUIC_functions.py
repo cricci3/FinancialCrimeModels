@@ -27,6 +27,17 @@ Utility functions:
 - print_matrix -> print SQUIC/Fit result
 '''
 
+def read_lambdas(name, dimension, type):
+    with open('lambda_values.json') as f:
+            lambda_data = json.load(f)
+        
+    if name == 'LIBRA':
+        lambdas = lambda_data[name]
+    else:
+        lambdas = lambda_data[name][dimension][type]
+    
+    return lambdas
+
 
 def compute_squic(Y, lambda_val):
     '''
@@ -213,13 +224,7 @@ def print_matrix(X, save=False, path=None):
 
 
 def squic_computation(Y_norm, name, dimension, printMatrix=False):
-    with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
-        
-    if name != 'LIBRA':
-        lambdas = lambda_data[name][dimension]["norm"]
-    else:
-        lambdas = lambda_data[name]
+    lambdas = read_lambdas(name, dimension, "no-bias")
 
     ROWS = len(Y_norm)
 
@@ -246,13 +251,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
 
 
 def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
-    with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
-        
-    if name != 'LIBRA':
-        lambdas = lambda_data[name][dimension]["norm"]
-    else:
-        lambdas = lambda_data[name]
+    lambdas = read_lambdas(name, dimension, "bias")
 
     ROWS = len(Y_norm)
 
@@ -279,13 +278,8 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
 
 
 def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
-    with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
-        
-    if name != 'LIBRA':
-        lambdas = lambda_data[name][dimension]["norm"]
-    else:
-        lambdas = lambda_data[name]
+    
+    lambdas = read_lambdas(name, dimension, "no-bias")
 
     ROWS = len(Y_norm)
 
@@ -318,19 +312,15 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
 
 
 def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
-    with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
-        
-    if name != 'LIBRA':
-        lambdas = lambda_data[name][dimension]["norm"]
-    else:
-        lambdas = lambda_data[name]
+    
+    lambdas = read_lambdas(name, dimension, "bias")
 
     ROWS = len(Y_norm)
 
     W_matrices = {}
 
     for rho in lambdas:
+        print(rho)
         W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
