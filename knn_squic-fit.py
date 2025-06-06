@@ -9,94 +9,111 @@ from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 
 
+def ask_yes_no(prompt, default=None):
+    """
+    Ask the user a yes/no question with optional default.
+    """
+    while True:
+        answer = input(f"{prompt} (Y/N) ").strip().upper()
+        if not answer and default:
+            return default
+        if answer in ['Y', 'N']:
+            return answer
+        print("Please enter 'Y' or 'N'.")
+
+
+def ask_input(prompt, default=None):
+    """
+    Ask the user for input with optional default.
+    """
+    answer = input(f"{prompt} ").strip()
+    if not answer and default is not None:
+        return default
+    return answer
+
+
 if __name__ == '__main__':
-    user_input = input("Do you want to load data? (Y/N)")
-    user_input = user_input.upper()
+    user_input = ask_yes_no("Do you want to load data?")
 
     if user_input == 'Y':
-        dimension = input("Which dimension?")
-        dimension = dimension.upper()
-
+        dimension = ask_input("Which dimension?").upper()
         path = 'paysim_data_saved'
 
         try:
-            # Set the chunk size (e.g., 100,000 rows per chunk)
-            chunk_size = 1000
-
+            # Load pre-saved Y_norm
+            chunk_size = 10000
             chunks = []
 
-            # Read CSV in chunks
             for chunk in pd.read_csv(f'{path}/YNorm_{dimension}.csv', chunksize=chunk_size):
                 chunks.append(chunk)
 
-            # Concatenate all chunks into a single DataFrame
             Y_norm = pd.concat(chunks, ignore_index=True)
 
+            # Load pre-saved knn_matrix
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
-
-            print(f"Shape of Y_norm loaded: {Y_norm.shape}")
-            print(f"Shape of knn_matrix loaded: {knn_matrix.shape}")
-            print(f"Type of knn_matrix loaded: {type(knn_matrix)}")
-
+            
+            # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
                 account_prop = json.load(f)
-
+            
             name = 'PAYSIM'
-        except:
-            print(f"No saved data found for dimension {dimension}")
+
+        except Exception as e:
+            # If data are not present
+            print(f"Error loading data: {e}")
+            exit(1)
         
-    else:
-        # Load dataset (the user will pass the name)
+    else: # Normal run
         Y, name, dimension, account_prop, _ = load_dataset()
 
-        # Extract time series
-        # extract_timeseries(Y, name)
-
-        # Normalise time series
         Y_norm = normalization(Y, name)
-
-        print(Y_norm.shape)
 
         n_neighbors = 3
         nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1, metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
-        knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity') # sparse matrix
-
-        user_input = input("Do you want to save this data? (Y/N)")
-        user_input = user_input.upper()
-
-        if user_input == 'Y':
-            # Save to fast init
+        knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
+        
+        # Ask user if want to save the data for next runs
+        if ask_yes_no("Do you want to cache this data?") == 'Y':
             path = 'paysim_data_saved'
-
-            # Save Y norm to csv
-            # Y_norm is rows = users, col = days
-            df_save = pd.DataFrame(Y_norm)
-            df_save.to_csv(f'{path}/YNorm_{dimension}.csv', index=False)
-
-            # Save account prop as JSON
+            
+            # Save Y_norm as CSV
+            pd.DataFrame(Y_norm).to_csv(f'{path}/YNorm_{dimension}.csv', index=False)
+            
+            # Save account_prop as json
             with open(f'{path}/account_prop_{dimension}.json', 'w') as f:
                 json.dump(account_prop, f)
-
-            # Save knn matrix
+            
+            # Save knn_matrix as npz
             sparse.save_npz(f'{path}/knn_matrix_{dimension}.npz', knn_matrix)
 
-
+    
     # Print knn matrix
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
     plt.ylabel("Users", fontsize=18)
-
-    plt.tick_params(axis='x')
-    plt.tick_params(axis='y') 
     plt.show()
 
     results_squic = {}
 
     # Run SQUIC_fit
-    results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix=False)
-    # results_squic['squic-fit-matrix'] = squic_fit_computation(Y_norm, name, dimension, printMatrix=True)
+    if ask_yes_no("SQUIC-Fit with bias or no? (Y for bias / N for no bias)") == 'Y':
+        user_input = input("Do you want to visualize the results of SQUIC-Fit? (Y/ N)").upper()
+        if user_input == 'Y':
+            printMatrix = True
+        else:
+            printMatrix = False
+        results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix)
+    
+    else:
+        user_input = input("Do you want to visualize the results of SQUIC-Fit? (Y/ N)").upper()
+        if user_input == 'Y':
+            printMatrix = True
+        else:
+            printMatrix = False
+        results_squic['squic-fit-matrix'] = squic_fit_computation(Y_norm, name, dimension, printMatrix)
 
+    # Results
     dict_cluster = clustering_2_communities(results_squic, method='implemented')
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
