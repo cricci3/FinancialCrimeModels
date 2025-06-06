@@ -7,6 +7,7 @@ import json
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
 import pandas as pd
+import os
 
 
 def ask_yes_no(prompt, default=None):
@@ -33,10 +34,10 @@ def ask_input(prompt, default=None):
 
 
 if __name__ == '__main__':
-    user_input = ask_yes_no("Do you want to load data?")
+    user_input = ask_yes_no("\nDo you want to load data?")
 
     if user_input == 'Y':
-        dimension = ask_input("Which dimension?").upper()
+        dimension = ask_input("Which dimension? (100/1K/10K/100K/1M)").upper()
         path = 'paysim_data_saved'
 
         try:
@@ -55,6 +56,8 @@ if __name__ == '__main__':
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
                 account_prop = json.load(f)
+
+            account_prop = {int(k): v for k, v in account_prop.items()}
             
             name = 'PAYSIM'
 
@@ -68,7 +71,15 @@ if __name__ == '__main__':
 
         Y_norm = normalization(Y, name)
 
-        n_neighbors = 3
+        if dimension == '100':
+            n_neighbors = 10
+        elif dimension == '1K':
+            n_neighbors = 7
+        elif dimension == '10K':
+            n_neighbors = 3
+        else:
+            n_neighbors = 2
+
         nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1, metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
@@ -76,6 +87,9 @@ if __name__ == '__main__':
         # Ask user if want to save the data for next runs
         if ask_yes_no("Do you want to cache this data?") == 'Y':
             path = 'paysim_data_saved'
+
+            # if path does not exists, create it
+            os.makedirs(path, exist_ok=True)
             
             # Save Y_norm as CSV
             pd.DataFrame(Y_norm).to_csv(f'{path}/YNorm_{dimension}.csv', index=False)
@@ -97,17 +111,15 @@ if __name__ == '__main__':
     results_squic = {}
 
     # Run SQUIC_fit
-    if ask_yes_no("SQUIC-Fit with bias or no? (Y for bias / N for no bias)") == 'Y':
-        user_input = input("Do you want to visualize the results of SQUIC-Fit? (Y/ N)").upper()
-        if user_input == 'Y':
+    if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
+        if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
         else:
             printMatrix = False
         results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix)
     
     else:
-        user_input = input("Do you want to visualize the results of SQUIC-Fit? (Y/ N)").upper()
-        if user_input == 'Y':
+        if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
         else:
             printMatrix = False
