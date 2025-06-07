@@ -1,8 +1,7 @@
-from workflow.internal import load_dataset, knn_graph, normalization, visualize_metrics, extract_timeseries
+from workflow.internal import load_dataset, normalization, extract_timeseries
 from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
-from workflow.clustering_functions import clustering_2_communities, modularity_fscore, ARI_fscore, plot_ARI_f1, labels_to_partition, partition_to_labels
+from workflow.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1
 import matplotlib.pyplot as plt
-import networkx as nx
 import json
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
@@ -34,6 +33,21 @@ def ask_input(prompt, default=None):
 
 
 if __name__ == '__main__':
+    '''
+    This script allows you to **load previously cached data** to speed up subsequent runs. 
+    Specifically, it can load:
+    - `Y_normalized` (the normalized dataset)
+    - `knn_matrix` (the nearest neighbors matrix)
+    - `account_prop` (the account properties)
+
+    These files are expected to be stored in the `paysim_data_saved` directory, named with the 
+    corresponding dataset dimension.
+
+    Note:
+    - The data must have been saved from a **previous successful run** using the same dimension.
+    - On the **first run** for a given dimension, you must generate and save this data by answering 
+      "Y" when prompted to cache it.
+    '''
     user_input = ask_yes_no("\nDo you want to load data?")
 
     if user_input == 'Y':
@@ -80,7 +94,7 @@ if __name__ == '__main__':
         else:
             n_neighbors = 2
 
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1, metric='euclidean', n_jobs=-1)
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
         
@@ -106,6 +120,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
     plt.ylabel("Users", fontsize=18)
+    plt.savefig(f'images/{dimension}/knn_matrix')
     plt.show()
 
     results_squic = {}
@@ -116,17 +131,19 @@ if __name__ == '__main__':
             printMatrix = True
         else:
             printMatrix = False
-        results_squic['squic-fit-matrix'] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix)
+        squic_method = 'squic-fit'
+        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save=True)
     
     else:
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
         else:
             printMatrix = False
-        results_squic['squic-fit-matrix'] = squic_fit_computation(Y_norm, name, dimension, printMatrix)
+        squic_method = 'squic-fit-matrix'
+        results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save=True)
 
     # Results
-    dict_cluster = clustering_2_communities(results_squic, method='implemented')
+    dict_cluster = clustering_2_communities(results_squic, dimension, squic_method, method='implemented')
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
