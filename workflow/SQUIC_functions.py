@@ -6,6 +6,7 @@ from scipy.sparse import csr_matrix, lil_matrix, triu, find, isspmatrix_csr
 from scipy.sparse import coo_matrix
 import json 
 import matplotlib.pyplot as plt
+import os
 
 
 '''
@@ -90,11 +91,9 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     '''
     start_time = time.time()
     
-    # --- Step 1: First SQUIC call ---
     X1, _, _, _, _, _ = squic.run(Y, lambda_val)
     X1 = X1.tocsr() if not isspmatrix_csr(X1) else X1
     
-    # --- Step 2: Build Graphical Bias G (sparse version) ---
     # Find negative off-diagonal elements < -kappa (upper triangle only)
     rows, cols, _ = find(triu(X1 < -kappa, k=1))
     
@@ -105,22 +104,18 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
                         np.concatenate([cols, rows]))),
                       shape=X1.shape).tocsr()
     
-    # --- Step 3: Build Regularization Parameter Matrix Λ ---
     # Create sparse Lambda matrix with eta where G is nonzero
     Lambda = lil_matrix(X1.shape)
     Lambda[G.nonzero()] = eta
     Lambda = Lambda.tocsr()
     
-    # --- Step 4: Second SQUIC call with bias ---
-    # (Assuming squic.run can accept sparse Lambda)
     X2, _, _, _, _, _ = squic.run(Y, lambda_val)
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
     
-    # --- Step 5: Construct final sparse matrix ---
     # Find negative off-diagonal elements < -tau
     rows, cols, vals = find(triu(X2 < -tau, k=1))
     
-    # Create symmetric COO matrix directly (more efficient than LIL)
+    # Create symmetric COO matrix directly
     data = X2[rows, cols].A1  # Extract values as 1D array
     X_final = coo_matrix((np.concatenate([data, data]),
                        (np.concatenate([rows, cols]),
@@ -201,7 +196,7 @@ def check_symmetric_sparse(X):
         return False
 
 
-def print_matrix(X, save=False, path=None):
+def print_matrix(X, show=False, save=False, path=None, file_name=None):
     '''
     Function to print adjaceny matrix
     '''
@@ -218,15 +213,20 @@ def print_matrix(X, save=False, path=None):
     # plt.title("Sparsity Pattern of Precision Matrix (X)")
 
     if save:
-        plt.savefig(path)
+        # if path does not exists, create it
+        os.makedirs(path, exist_ok=True)
+        plt.savefig(f"{path}/{file_name}")
     
-    plt.show()
+    if show:
+        plt.show()
 
 
-def squic_computation(Y_norm, name, dimension, printMatrix=False):
+def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None):
     lambdas = read_lambdas(name, dimension, "no-bias")
 
     ROWS = len(Y_norm)
+
+    squic_method = 'squic'
 
     # Dict to store precision matrix given by SQUIC
     theta_dict = {}
@@ -239,8 +239,8 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
         nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
-        if printMatrix:
-            print_matrix(theta_dict[rho])
+        if printMatrix or save:
+            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -250,10 +250,12 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False):
     return theta_dict
 
 
-def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
+def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False, save=False, path=None):
     lambdas = read_lambdas(name, dimension, "bias")
 
     ROWS = len(Y_norm)
+
+    squic_method = 'squic-matrix'
 
     # Dict to store precision matrix given by SQUIC
     theta_dict = {}
@@ -266,8 +268,8 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
         nnz, nnz_r = nnz_sparse(theta_dict[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
-        if printMatrix:
-            print_matrix(theta_dict[rho])
+        if printMatrix or save:
+            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -277,11 +279,13 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
     return theta_dict
 
 
-def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
+def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None):
     
     lambdas = read_lambdas(name, dimension, "no-bias")
 
     ROWS = len(Y_norm)
+
+    squic_method = 'squic-fit'
 
     W_matrices = {}
 
@@ -300,8 +304,8 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
         nnz, nnz_r = nnz_sparse(W_matrices[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
-        if printMatrix:
-            print_matrix(W_matrices[rho])
+        if printMatrix or save:
+            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -311,16 +315,17 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False):
     return W_matrices
 
 
-def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False):
+def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False, save=False):
     
     lambdas = read_lambdas(name, dimension, "bias")
+
+    squic_method = 'squic-fit-matrix'
 
     ROWS = len(Y_norm)
 
     W_matrices = {}
 
     for rho in lambdas:
-        print(rho)
         W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
@@ -335,8 +340,8 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
         nnz, nnz_r = nnz_sparse(W_matrices[rho], ROWS)
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
-        if printMatrix:
-            print_matrix(W_matrices[rho])
+        if printMatrix or save:
+            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
