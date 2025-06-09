@@ -15,7 +15,6 @@ def compute_normalized_laplacian(adj):
     where L = D - A is the unnormalized Laplacian
     Keeps everything sparse.
     """
-
     # Compute degree vector
     degrees = np.array(adj.sum(axis=1)).flatten()
     degrees[degrees == 0] = 1  # Avoid division by zero
@@ -30,17 +29,35 @@ def compute_normalized_laplacian(adj):
     # normalized Laplacian = D^(-1/2) * L * D^(-1/2)
     L_norm = D_inv_sqrt @ L @ D_inv_sqrt
 
+    # # Use normalized Laplacian formula directly:  I - D^(-1\2)AD^(-1\2) taken from https://en.wikipedia.org/wiki/Laplacian_matrix
+    # # It avoids creating the potentially large D - A explicitly
+    # I = identity(adj.shape[0], format='csr')
+    # L_norm = I - D_inv_sqrt @ adj @ D_inv_sqrt
+
     return L_norm
 
 
-def compute_eigenvalues(laplacian_matrix):
+def compute_eigenvalues_eigenvectors(L_norm, k=20):
     """
     Compute the smallest k eigenvalues of the Laplacian matrix (sparse).
     """
-    k = 20
+    print("Starting computing eigens")
+    k = k+1
 
-    eigenvalues, eigenvectors = eigsh(laplacian_matrix, k=k, which='SM')
-    eigenvalues = np.sort(eigenvalues)
+    eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA') # SM or SA
+
+    # Order
+    idx = np.argsort(eigenvalues)
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+    
+    # Discard first eigen (~0)
+    eigenvalues = eigenvalues[1:]
+    eigenvectors = eigenvectors[:, 1:]
+
+    print("Done computing eigens")
+
+    # eigenvalues = np.sort(eigenvalues)
 
     return eigenvalues, eigenvectors
 
@@ -80,7 +97,7 @@ def find_optimal_clusters(graph, plot=True):
     L_norm = compute_normalized_laplacian(adjacency_matrix)
 
     # Compute eigenvalues
-    eigenvalues, eigenvectors = compute_eigenvalues(L_norm)
+    eigenvalues, eigenvectors = compute_eigenvalues_eigenvectors(L_norm)
 
     # Compute relative eigengaps
     relative_eigengaps, k_values = compute_relative_eigengap(eigenvalues)
@@ -118,12 +135,13 @@ def find_optimal_clusters(graph, plot=True):
     return optimal_k, eigenvectors
 
 
-def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False):
-    selected_eigenvectors = eigenvectors[:, :optimal_k]
+def compute_spectral_clustering(eigenvectors, k, method='kmeans', plot=False):
+    print("Starting computing spectral clustering")
+    selected_eigenvectors = eigenvectors[:, :k]
     X_normalized = normalize(selected_eigenvectors, norm='l2')
     
     if method == 'kmeans':
-        kmeans = KMeans(n_clusters=optimal_k, random_state=42)
+        kmeans = KMeans(n_clusters=k, random_state=42)
         labels = kmeans.fit_predict(X_normalized)
 
     elif method == 'hierarchical':
@@ -136,6 +154,8 @@ def compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=F
             plt.title("Dendrogram of Spectral Embedding")
             plt.show()
 
-        labels = fcluster(Z, t=optimal_k, criterion='maxclust')
+        labels = fcluster(Z, t=k, criterion='maxclust')
+    
+    print("Done computing spectral clustering")
 
     return labels

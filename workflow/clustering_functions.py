@@ -8,6 +8,7 @@ from sklearn.metrics import f1_score, adjusted_rand_score
 
 from tqdm import tqdm
 import time
+import os
 
 from scipy.sparse import lil_matrix
 from scipy.sparse.csgraph import connected_components
@@ -15,7 +16,7 @@ from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
-from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues
+from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
 import igraph as ig
 import leidenalg as la
 
@@ -372,9 +373,6 @@ def clustering_optimal_number(W_matrices):
         eps_range = np.linspace(0.1, 2.0, 20)
         min_samples_range = range(3, 10)
 
-        eps_range = np.linspace(0.1, 2.0, 20)
-        min_samples_range = range(3, 10)
-
         print(f"Trying different params for DBSCAN for lambda = {rho}")
         start = time.time()
         for eps in tqdm(eps_range):
@@ -433,14 +431,14 @@ def clustering_optimal_number(W_matrices):
     return dict_cluster
 
 
-def clustering_2_communities(results_squic, method='scikit-learn'):
+def clustering_2_communities(results_squic, dimension, squic_method, method='scikit-learn'):
     '''
     if method='scikit-learn' use spectral clustering of this lib
     else use spectral clustering implemented in spectral_clustering.py file
     '''
 
     dict_cluster = {
-        "squic-fit-matrix" : {}
+        squic_method : {}
     }
 
     for technique, matrices in results_squic.items():
@@ -454,27 +452,16 @@ def clustering_2_communities(results_squic, method='scikit-learn'):
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            print(f"for rho {rho} graph is connected {nx.is_connected(G)}")
+            print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
-            if not nx.is_connected(G):
-                components = list(nx.connected_components(G))
-                main_component = max(components, key=len)
-                isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
-                
-                print(f"Main component: {len(main_component)} nodes")
-                print(f"Isolated nodes: {len(isolated_nodes)} nodes")
-                print(f"Other components: {len(components) - len(isolated_nodes) - 1}\n")
-                
-                # if len(isolated_nodes) > 0:
-                #     print(isolated_nodes)
-                #     print()
+            print(f"Computing spectral clustering for rho {rho}...")
             
             if method == 'scikit-learn':
                 clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
                 labels_spectral = clustering.fit_predict(X)
             elif method == 'implemented':
-                L_norm = compute_normalized_laplacian(X)
-                _, eigenvectors = compute_eigenvalues(L_norm)
+                L_norm = compute_normalized_laplacian(X) # fast
+                _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # problems is here
                 labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
 
             # Convert labels to list of sets
@@ -650,11 +637,16 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
             ari = adjusted_rand_score(true_labels, cluster_labels)
             metrics[method][rho]['spectral']['ARI'] = round(ari, 2)
 
-            # Compute ARI score (test both label alignments)
+            # Compute F1 score (test both label alignments)
             f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
             f1b = f1_score(true_labels, cluster_labels, average='weighted')
 
-            f1 = max(f1a, f1b)
+            # Choose the F1 score that is closer to ARI (normalized between 0:1)
+            normalized_ari = (ari + 1)/2
+            if abs(f1a - normalized_ari) < abs(f1b - normalized_ari):
+                f1 = f1a
+            else:
+                f1 = f1b
 
             metrics[method][rho]['spectral']['f1'] = round(f1, 2)
 
@@ -708,10 +700,10 @@ def plot_Q_f1(metrics_dict):
     plt.show()
 
 
-def plot_ARI_f1(metrics_dict):
-    methods = ['squic-fit-matrix']
+def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
+    methods = [squic_method]
     colors = {
-        'squic-fit-matrix': 'tab:orange'
+        squic_method: 'tab:orange'
     }
 
     fig, ax1 = plt.subplots(figsize=(6, 6))
@@ -752,4 +744,9 @@ def plot_ARI_f1(metrics_dict):
 
     fig.tight_layout()
     plt.grid(True)
+    if save:
+        # if path does not exists, create it
+        os.makedirs(f'images/{dimension}', exist_ok=True)
+        plt.savefig(f"images/{dimension}/ARI_F1_{squic_method}")
+        print(f"Plot saved in images/{dimension}/ARI_F1_{squic_method}")
     plt.show()

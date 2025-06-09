@@ -83,18 +83,19 @@ if __name__ == '__main__':
     else: # Normal run
         Y, name, dimension, account_prop, _ = load_dataset()
 
+        extract_timeseries(Y, name)
+
         Y_norm = normalization(Y, name)
 
-        if dimension == '100':
-            n_neighbors = 10
-        elif dimension == '1K':
-            n_neighbors = 7
-        elif dimension == '10K':
-            n_neighbors = 3
-        else:
-            n_neighbors = 2
+        n_neigs = {
+            '100' : 10,
+            '1K' : 8,
+            '10K' : 4,
+            '100K' : 2,
+            '1M' : 2
+        }
 
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean', n_jobs=-1)
+        nbrs = NearestNeighbors(n_neighbors=n_neigs[dimension], metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
         
@@ -115,35 +116,55 @@ if __name__ == '__main__':
             # Save knn_matrix as npz
             sparse.save_npz(f'{path}/knn_matrix_{dimension}.npz', knn_matrix)
 
-    
-    # Print knn matrix
-    plt.figure(figsize=(7, 7))
-    plt.spy(knn_matrix, markersize=5)
-    plt.ylabel("Users", fontsize=18)
-    plt.savefig(f'images/{dimension}/knn_matrix')
-    plt.show()
-
     results_squic = {}
 
     # Run SQUIC_fit
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
+        
+        # Print knn matrix
+        plt.figure(figsize=(7, 7))
+        plt.spy(knn_matrix, markersize=5)
+        plt.ylabel("Users", fontsize=18)
+        plt.savefig(f'images/{dimension}/knn_matrix')
+        plt.show()
+
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
         else:
             printMatrix = False
-        squic_method = 'squic-fit'
-        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save=True)
+
+        if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
+            save = True
+        else:
+            save = False
+        
+        squic_method = 'squic-fit-matrix'
+        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save)
     
     else:
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
         else:
             printMatrix = False
-        squic_method = 'squic-fit-matrix'
-        results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save=True)
+
+        if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
+            save = True
+        else:
+            save = False
+
+        squic_method = 'squic-fit'
+        results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
+
+    dict_method = {
+        '100' : 'scikit-learn',
+        '1K' : 'implemented',
+        '10K' : 'implemented',
+        '100K' : 'implemented',
+        '1M' : 'implemented'
+    }
 
     # Results
-    dict_cluster = clustering_2_communities(results_squic, dimension, squic_method, method='implemented')
+    dict_cluster = clustering_2_communities(results_squic, dimension, squic_method, method=dict_method[dimension])
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
@@ -151,5 +172,5 @@ if __name__ == '__main__':
         for rho, results in data.items():
             print(f"for rho = {rho} : {results}")
 
-    plot_ARI_f1(metrics)
+    plot_ARI_f1(metrics, squic_method, dimension, save)
     
