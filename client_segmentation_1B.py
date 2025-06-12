@@ -165,7 +165,7 @@ if __name__ == '__main__':
     for rho, data in metrics.items():
         print(f"For rho {rho}:")
         for method, results in data.items():
-            print(f"    {method}: {results}")
+            print(f"    {method}: NCUT = {results['ncut']}, Q = {results['modularity']}, nCluster = {results['nCluster']}")
 
     # plot_ARI_f1(metrics, squic_method, dimension, save)
     
