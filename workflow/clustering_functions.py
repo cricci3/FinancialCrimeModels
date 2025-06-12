@@ -16,201 +16,9 @@ from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
-from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
+from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors, debug_spectral_clustering, compute_normalized_laplacian_fixed, compute_eigenvalues_eigenvectors_fixed, diagnose_adjacency_matrix, remove_isolated_nodes
 import igraph as ig
 import leidenalg as la
-
-
-def connect_isolated(X, min_correlation=1e-6):
-    """
-    Connect isolated nodes using very weak correlations
-    
-    Args:
-        X: SQUIC correlation matrix
-        min_correlation: minimum correlation to add for isolated nodes
-    
-    Returns:
-        X_connected: connected adjacency matrix
-    """
-    
-    G = nx.from_scipy_sparse_array(X)
-    
-    # Find connected components
-    components = list(nx.connected_components(G))
-    main_component = max(components, key=len)
-    isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
-    
-    # print(f"Main component: {len(main_component)} nodes")
-    # print(f"Isolated nodes: {len(isolated_nodes)} nodes")
-    # print(f"Other components: {len(components) - len(isolated_nodes) - 1}")
-    
-    X_connected = X.copy()
-        
-    for isolated_node in isolated_nodes:
-        # Connect to nearest node in main component (arbitrary but deterministic)
-        main_nodes = list(main_component)
-        # Use node index distance as a simple heuristic
-        nearest_main = min(main_nodes, key=lambda x: abs(x - isolated_node))
-        
-        X_connected[isolated_node, nearest_main] = min_correlation
-        X_connected[nearest_main, isolated_node] = min_correlation
-        
-        # print(f"  Weakly connected node {isolated_node} to node {nearest_main}")
-    
-    # Handle any remaining multi-node components
-    remaining_components = [comp for comp in components 
-                          if len(comp) > 1 and comp != main_component]
-    
-    for comp in remaining_components:
-        # Connect each remaining component to main component
-        comp_nodes = list(comp)
-        main_nodes = list(main_component)
-        
-        # Find best existing connection or create weak one
-        max_weight = 0
-        best_edge = None
-        
-        for i in comp_nodes:
-            for j in main_nodes:
-                weight = max(X[i, j], X[j, i])
-                if weight > max_weight:
-                    max_weight = weight
-                    best_edge = (i, j)
-        
-        if best_edge and max_weight > 0:
-            X_connected[best_edge[0], best_edge[1]] = max_weight
-            X_connected[best_edge[1], best_edge[0]] = max_weight
-        else:
-            # Create weak connection
-            i, j = comp_nodes[0], main_nodes[0]
-            X_connected[i, j] = min_correlation
-            X_connected[j, i] = min_correlation
-        
-        # print(f"  Connected component of {len(comp)} nodes to main component")
-    
-    return X_connected
-
-
-def connect_components_softly(X):
-    X = X.tolil()
-
-    n_components, labels = connected_components(csgraph=X, directed=False, return_labels=True)
-    if n_components <= 1:
-        return X.tocsr()
-    
-    # Identify isolated nodes (degree 0)
-    isolated_nodes = [i for i in range(X.shape[0]) if X.rows[i] == []]
-
-    if not isolated_nodes:
-        return X.tocsr()
-
-    # Find minimum non-zero value for weak connection
-    min_val = X.data[0][0]
-    for row in X.data:
-        if row:
-            min_val = min(min_val, min(row))
-    min_val = min_val if min_val > 0 else 1e-6
-
-    # For each isolated node, find its most similar node (based on X row)
-    for node in isolated_nodes:
-        # Search in the full matrix (sparse row)
-        row = X.getrow(node).tocoo()
-        # fallback: connect to the first non-isolated node with nonzero connection
-        best_score = -1
-        best_neighbor = None
-        for j in range(X.shape[0]):
-            if j == node or j in isolated_nodes:
-                continue
-            score = X[j, node]
-            if score > best_score:
-                best_score = score
-                best_neighbor = j
-        if best_neighbor is not None:
-            X[node, best_neighbor] = min_val
-            X[best_neighbor, node] = min_val
-
-    return X.tocsr()
-
-
-def similarity_graph(G, account_prop, X):
-    '''
-    Use the "class" from account_prop to build a class-based similarity matrix and then merge with matrix
-    '''
-    
-    print("Using Similairty graph")
-
-    components = list(nx.connected_components(G))
-    main_component = max(components, key=len)
-    isolated_nodes = [list(comp)[0] for comp in components if len(comp) == 1]
-
-    print(f"Main component: {len(main_component)} nodes")
-    print(f"Isolated nodes: {len(isolated_nodes)} nodes")
-    print(f"Other components: {len(components) - len(isolated_nodes) - 1}")
-
-    n = len(account_prop)
-    class_labels = np.array([account_prop[i]["class"] for i in range(n)])
-
-    W_sim = lil_matrix((n, n))  # initialize Similarity graph as sparse matrix
-
-    # Group indices by class
-    class_to_indices = defaultdict(list)
-    for i, cls in enumerate(class_labels):
-        class_to_indices[cls].append(i)
-
-    # For each class, connect all users in that class (like block diagonal)
-    for indices in class_to_indices.values():
-        for i in indices:
-            W_sim[i, indices] = 1.0  # Vectorized row update
-
-    W_sim = W_sim.tocsr()
-
-    # Fuse X with sim graph
-    alpha = 0.8
-
-    # W-fused[i,j]= a⋅W-squic[i,j]+(1−α)⋅Wsim[i,j]
-    X = alpha * X + (1 - alpha) * W_sim
-    # If the users are strongly correlated statistically -> W_squic[i,j] will dominate
-    # For disconnected or weakly connected nodes, if the users are of the same class (W_sim[i,j] = 1) will contribute
-
-    # Normalize (unit max)
-    X = X / np.max(X)
-
-    return X
-
-
-# def resolve_graph_connection(X, name, account_prop):
-#     # if graph not connected, user Similairty Graph for paysim, other technique for AMLSIM/Libra
-#     G = nx.from_scipy_sparse_array(X)
-
-#     # if name != 'PAYSIM':
-#     #     # while not nx.is_connected(G):
-#     #     #     print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
-
-#     #     #     X = connect_isolated(X)
-#     #     #     G = nx.from_scipy_sparse_array(X)
-
-#     #     #     print(f"Is connected? {nx.is_connected(G)}")
-#     #     X = connect_components_softly(X)
-
-#     # else: # for PAYSIM only -> use similarity graph
-#     #     # print(f"Graph not connected. {nx.number_connected_components(G)} components found.")
-
-#     #     # X = similarity_graph(G, account_prop, X)
-#     #     # G = nx.from_scipy_sparse_array(X)
-
-#     #     # if not nx.is_connected(G):
-#     #     #     while not nx.is_connected(G):
-#     #     #         print("Graph still not connected after Similarity Graph")
-#     #     #         X = connect_isolated(X)
-#     #     #         G = nx.from_scipy_sparse_array(X)
-#     #     #     print("Graph connected")
-#     #     # else:
-#     #     #     print("Graph connected after Similarity Graph")
-#         # X = connect_components_softly(X)
-#     X = connect_components_softly(X)
-#     G = nx.from_scipy_sparse_array(X)
-
-#     return X, G
 
 
 def labels_to_partition(labels):
@@ -255,11 +63,6 @@ def clustering_same_n(W_matrices, name, account_prop):
 
         # Create a graph from matrix X
         G = nx.from_scipy_sparse_array(X)
-
-        # if nx.is_connected(G):
-        #     print("Graph already connected!")
-        # else:
-        #     X, G = resolve_graph_connection(X, name, account_prop)
 
         print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}")
 
@@ -331,114 +134,12 @@ def clustering_same_n(W_matrices, name, account_prop):
     
     return dict_cluster
 
-def clustering_optimal_number(W_matrices):
+def clustering_optimal_number(results_squic, plot=False):
     dict_cluster = {
         "louvain" : {},
         "spectral" : {},
         "dbscan" : {},
         "leiden" : {}
-    }
-
-    for rho, X in W_matrices.items():
-        # Ensure all off-diagonal entries are positive
-        X = np.abs(X) 
-
-        # Ensure diagonal entries are zero
-        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
-
-        # Create a graph from matrix X
-        G = nx.from_scipy_sparse_array(X)
-
-        print()
-        print("=======================================================")
-        print(f"Graph for rho {rho} is connected? {nx.is_connected(G)}\n")
-
-        # Louvain
-        start = time.time()
-        partition_louvain = community.louvain_communities(G)
-        end_louv = time.time() - start
-        dict_cluster['louvain'][rho] = partition_louvain
-
-        # Leiden
-        start = time.time()
-        G_igraph = ig.Graph.from_networkx(G)
-        partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
-        end_leiden = time.time() - start
-        dict_cluster['leiden'][rho] = partition_leiden
-
-        # DBSCAN with multiple params
-        best_Q = -1
-        best_params = None
-
-        eps_range = np.linspace(0.1, 2.0, 20)
-        min_samples_range = range(3, 10)
-
-        print(f"Trying different params for DBSCAN for lambda = {rho}")
-        start = time.time()
-        for eps in tqdm(eps_range):
-            for min_samples in min_samples_range:
-                dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
-                labels = dbscan.fit_predict(X)
-                
-                # Ignore if all points are noise (-1) or single cluster
-                if len(set(labels)) <= 1 or (set(labels) == {-1}):
-                    continue
-
-                partition_dbscan = labels_to_partition(labels)
-
-                # compute Q to evaluate
-                db_Q = community.modularity(G, partition_dbscan)
-                if db_Q > best_Q:
-                    best_Q = db_Q
-                    best_params = (eps, min_samples)
-
-        if best_params is not None:
-            dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
-        else:
-            print("No suitable DBSCAN parameters found! DBSCAN with default params")
-            dbscan = DBSCAN()
-
-        labels_dbscan = dbscan.fit_predict(X)
-        end_db = time.time() - start
-
-        # Convert labels to list of sets
-        partition_dbscan = labels_to_partition(labels_dbscan)
-        dict_cluster['dbscan'][rho] = partition_dbscan
-
-        # Use n_cluster = len(partitionin louvain)
-        start = time.time()
-        optimal_k, eigenvectors = find_optimal_clusters(G, plot=False)
-        labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='hierarchical', plot=False)
-        end_spec = time.time() - start
-
-        # Convert labels to list of sets
-        partition_spectral = labels_to_partition(labels_spectral)
-
-        dict_cluster['spectral'][rho] = partition_spectral
-
-        print(f"For rho {rho}: ")
-
-        print(f"Number of louvain cluster is {len(partition_louvain)}")
-        print(f"Number of leiden cluster is {len(partition_leiden)}")
-        print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
-        print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
-
-        print(f"Time for Louvain -> {end_louv}")
-        print(f"Time for Leiden -> {end_leiden}")
-        print(f"Time for DBSCAN -> {end_db}")
-        print(f"Time for Spectral -> {end_spec}\n")
-    
-    return dict_cluster
-
-
-def clustering_2_communities(results_squic, dimension, squic_method, method='scikit-learn'):
-    '''
-    if method='scikit-learn' use spectral clustering of this lib
-    else use spectral clustering implemented in spectral_clustering.py file
-    '''
-
-    dict_cluster = {
-        squic_method : {}
     }
 
     for technique, matrices in results_squic.items():
@@ -452,21 +153,141 @@ def clustering_2_communities(results_squic, dimension, squic_method, method='sci
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
+            # Louvain
+            start = time.time()
+            partition_louvain = community.louvain_communities(G)
+            end_louv = time.time() - start
+            dict_cluster['louvain'][rho] = partition_louvain
 
-            print(f"Computing spectral clustering for rho {rho}...")
-            
-            if method == 'scikit-learn':
-                clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+            # Leiden
+            start = time.time()
+            G_igraph = ig.Graph.from_networkx(G)
+            partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
+            end_leiden = time.time() - start
+            dict_cluster['leiden'][rho] = partition_leiden
+
+            # DBSCAN with multiple params
+            best_Q = -1
+            best_params = None
+
+            eps_range = np.linspace(0.1, 2.0, 20)
+            min_samples_range = range(3, 10)
+
+            print(f"Trying different params for DBSCAN for lambda = {rho}")
+            start = time.time()
+            for eps in tqdm(eps_range):
+                for min_samples in min_samples_range:
+                    dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                    labels = dbscan.fit_predict(X)
+                    
+                    # Ignore if all points are noise (-1) or single cluster
+                    if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                        continue
+
+                    partition_dbscan = labels_to_partition(labels)
+
+                    # compute Q to evaluate
+                    db_Q = community.modularity(G, partition_dbscan)
+                    if db_Q > best_Q:
+                        best_Q = db_Q
+                        best_params = (eps, min_samples)
+
+            if best_params is not None:
+                dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
+            else:
+                print("No suitable DBSCAN parameters found! DBSCAN with default params")
+                dbscan = DBSCAN()
+
+            labels_dbscan = dbscan.fit_predict(X)
+            end_db = time.time() - start
+
+            # Convert labels to list of sets
+            partition_dbscan = labels_to_partition(labels_dbscan)
+            dict_cluster['dbscan'][rho] = partition_dbscan
+
+            # Spectral Clustering
+            start = time.time()
+            optimal_k, eigenvectors = find_optimal_clusters(G, plot)
+            if nx.is_connected(G):
+                # Use scikit-learn method
+                clustering = SpectralClustering(n_clusters=optimal_k, affinity='precomputed', assign_labels='cluster_qr')
                 labels_spectral = clustering.fit_predict(X)
-            elif method == 'implemented':
-                L_norm = compute_normalized_laplacian(X) # fast
-                _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # problems is here
-                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
+            else:
+                labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
+            end_spec = time.time() - start
 
             # Convert labels to list of sets
             partition_spectral = labels_to_partition(labels_spectral)
-            dict_cluster[technique][rho] = partition_spectral
+
+            dict_cluster['spectral'][rho] = partition_spectral
+
+            print(f"For rho {rho}: ")
+
+            print(f"Number of louvain cluster is {len(partition_louvain)}")
+            print(f"Number of leiden cluster is {len(partition_leiden)}")
+            print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
+            print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
+
+            print(f"Time for Louvain -> {round(end_louv, 2)} s")
+            print(f"Time for Leiden -> {round(end_leiden, 2)} s")
+            print(f"Time for DBSCAN -> {round(end_db, 2)} s")
+            print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
+    
+    return dict_cluster
+
+
+def clustering_2_communities(results_squic, squic_method, method='scikit-learn'):
+    '''
+    if method='scikit-learn' use spectral clustering of this lib
+    else use spectral clustering implemented in spectral_clustering.py file
+    '''
+
+    dict_cluster = {
+        squic_method : {}
+    }
+
+    for technique, matrices in results_squic.items():
+        for rho, X in matrices.items():
+            if rho != 0.9997:
+                # Ensure all off-diagonal entries are positive
+                X = np.abs(X) 
+
+                # Ensure diagonal entries are zero
+                X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+
+                # Create a graph from matrix X
+                G = nx.from_scipy_sparse_array(X)
+
+                print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
+
+                print(f"Computing spectral clustering for rho {rho}...")
+                start = time.time()
+
+                # eigenvalues, eigenvectors, degrees = debug_spectral_clustering(X)
+
+                # print(f"for rho {rho} eigenvalues: {eigenvalues}")
+                # print(f"for rho {rho} eigenvectors: {eigenvectors}")
+                # print(f"for rho {rho} degrees: {degrees}")
+
+                # X, _ = remove_isolated_nodes(X)
+
+                if nx.is_connected(G): # if method == 'scikit-learn'
+                    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+                    labels_spectral = clustering.fit_predict(X)
+                # elif method == 'implemented':
+                else:
+                    # diagnose_adjacency_matrix(X)
+                    L_norm = compute_normalized_laplacian(X) # fast
+                    _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
+                    labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
+                
+                end = time.time() - start
+
+                print(f"For rho {rho} takes {end} seconds")
+                # Convert labels to list of sets
+                partition_spectral = labels_to_partition(labels_spectral)
+
+                dict_cluster[technique][rho] = partition_spectral
 
     return dict_cluster
 
@@ -491,59 +312,61 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
         }
 
     for method, clustering_results in dict_cluster.items():
-        for l, X in W_matrices.items():
-            partition = clustering_results[l]
+        print(method)
+        for _, matrix in W_matrices.items():
+            for l, X in matrix.items(): 
+                partition = clustering_results[l]
 
-            # Ensure all off-diagonal entries are positive
-            X = np.abs(X) 
+                # Ensure all off-diagonal entries are positive
+                X = np.abs(X) 
 
-            # Ensure diagonal entries are zero
-            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+                # Ensure diagonal entries are zero
+                X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-            # G = nx.from_numpy_array(X)
-            G = nx.from_scipy_sparse_array(X)
+                # G = nx.from_numpy_array(X)
+                G = nx.from_scipy_sparse_array(X)
 
-            node_to_community = {}
-            for idx, comm in enumerate(partition):
-                for node in comm:
-                    node_to_community[node] = idx
+                node_to_community = {}
+                for idx, comm in enumerate(partition):
+                    for node in comm:
+                        node_to_community[node] = idx
 
-            n_cut = 0
-            r_cut = 0
+                n_cut = 0
+                r_cut = 0
 
-            clusters = set(node_to_community.values()) # set of clusters
+                clusters = set(node_to_community.values()) # set of clusters
 
-            for cluster_id in clusters:
-                # Nodes in this cluster
-                cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
+                for cluster_id in clusters:
+                    # Nodes in this cluster
+                    cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
+                    
+                    # Nodes not in this cluster
+                    other_nodes = [n for n in G.nodes() if n not in cluster_nodes]
+                    
+                    # Calculate cut: sum of weights between cluster and rest of graph
+                    cut = nx.cut_size(G, cluster_nodes, other_nodes, weight='weight')
+                    
+                    # Calculate size of cluster
+                    size = len(cluster_nodes)
+
+                    # Calculate volume of cluster (sum of weights of edges connected to nodes in cluster)
+                    volume = sum(dict(G.degree(cluster_nodes, weight='weight')).values())
+
+                    # Normalized cut and ratio cut
+                    r_cut += cut / size if size > 0 else 0
+                    n_cut += cut / volume if volume > 0 else 0
+
+                int_metrics[l][method]["ncut"] = float(round(n_cut, 2))
+                int_metrics[l][method]["rcut"] = float(round(r_cut, 2))
+
+                modularity = community.modularity(G, dict_cluster[method][l])
+                int_metrics[l][method]['modularity'] = float(round(modularity, 2))
                 
-                # Nodes not in this cluster
-                other_nodes = [n for n in G.nodes() if n not in cluster_nodes]
-                
-                # Calculate cut: sum of weights between cluster and rest of graph
-                cut = nx.cut_size(G, cluster_nodes, other_nodes, weight='weight')
-                
-                # Calculate size of cluster
-                size = len(cluster_nodes)
+                # Connected Components
+                int_metrics[l][method]['CC'] = nx.number_connected_components(G)
 
-                # Calculate volume of cluster (sum of weights of edges connected to nodes in cluster)
-                volume = sum(dict(G.degree(cluster_nodes, weight='weight')).values())
-
-                # Normalized cut and ratio cut
-                r_cut += cut / size if size > 0 else 0
-                n_cut += cut / volume if volume > 0 else 0
-
-            int_metrics[l][method]["ncut"] = float(round(n_cut, 2))
-            int_metrics[l][method]["rcut"] = float(round(r_cut, 2))
-
-            modularity = community.modularity(G, dict_cluster[method][l])
-            int_metrics[l][method]['modularity'] = float(round(modularity, 2))
-            
-            # Connected Components
-            int_metrics[l][method]['CC'] = nx.number_connected_components(G)
-
-            # N cluster
-            int_metrics[l][method]['nCluster'] = len(partition)
+                # N cluster
+                int_metrics[l][method]['nCluster'] = len(partition)
 
     return int_metrics
 
