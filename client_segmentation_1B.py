@@ -162,9 +162,10 @@ if __name__ == '__main__':
 
     metrics = internal_metrics(dict_cluster, results_squic, leiden=True)
 
-    for _, data in metrics.items():
-        for rho, results in data.items():
-            print(f"for rho = {rho} : {results}")
+    for rho, data in metrics.items():
+        print(f"For rho {rho}:")
+        for method, results in data.items():
+            print(f"    {method}: {results}")
 
     # plot_ARI_f1(metrics, squic_method, dimension, save)
     

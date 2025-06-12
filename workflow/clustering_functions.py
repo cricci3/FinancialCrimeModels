@@ -221,17 +221,17 @@ def clustering_optimal_number(results_squic, plot=False):
 
             dict_cluster['spectral'][rho] = partition_spectral
 
-            print(f"For rho {rho}: ")
+            # print(f"For rho {rho}: ")
 
-            print(f"Number of louvain cluster is {len(partition_louvain)}")
-            print(f"Number of leiden cluster is {len(partition_leiden)}")
-            print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
-            print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
+            # print(f"Number of louvain cluster is {len(partition_louvain)}")
+            # print(f"Number of leiden cluster is {len(partition_leiden)}")
+            # print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
+            # print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
 
-            print(f"Time for Louvain -> {round(end_louv, 2)} s")
-            print(f"Time for Leiden -> {round(end_leiden, 2)} s")
-            print(f"Time for DBSCAN -> {round(end_db, 2)} s")
-            print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
+            # print(f"Time for Louvain -> {round(end_louv, 2)} s")
+            # print(f"Time for Leiden -> {round(end_leiden, 2)} s")
+            # print(f"Time for DBSCAN -> {round(end_db, 2)} s")
+            # print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
     
     return dict_cluster
 
@@ -293,26 +293,27 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
 
 
 def internal_metrics(dict_cluster, W_matrices, leiden=False):
-    if leiden == False:
+    matrix_dict = next(iter(W_matrices.values()))
+
+    if not leiden:
         int_metrics = {
             rho: {
-                'louvain' : {},
-                'dbscan' : {},
-                'spectral' : {}
-            } for rho in W_matrices.keys()
+                'louvain': {},
+                'dbscan': {},
+                'spectral': {}
+            } for rho in matrix_dict.keys()
         }
     else:
         int_metrics = {
             rho: {
-                'louvain' : {},
-                'leiden' : {},
-                'dbscan' : {},
-                'spectral' : {},
-            } for rho in W_matrices.keys()
+                'louvain': {},
+                'leiden': {},
+                'dbscan': {},
+                'spectral': {}
+            } for rho in matrix_dict.keys()
         }
 
     for method, clustering_results in dict_cluster.items():
-        print(method)
         for _, matrix in W_matrices.items():
             for l, X in matrix.items(): 
                 partition = clustering_results[l]
