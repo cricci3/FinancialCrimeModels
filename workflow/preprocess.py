@@ -9,20 +9,17 @@ def AMLSim_preprocessing(dimension):
     account_prop = {}
     max_steps = 200
 
-    dataset_path = f"datasets/AMLSim/{dimension} users"
+    dataset_path = f"Datasets/AMLSim/{dimension} users"
     accounts_csv = f"{dataset_path}/accounts.csv"
     transactions_csv = f"{dataset_path}/transactions.csv"
 
-    if dimension == '100':
-        chunk_size = 1000
-    elif dimension == '1K':
-        chunk_size = 10000
-    elif dimension == '10K':
-        chunk_size = 100000
-    elif dimension == '100K':
-        chunk_size = 1000000
-    elif dimension == '1M':
-        chunk_size = 10000000
+    dict_dimension = {
+        '100': 1000,
+        '1K': 10000,
+        '10K': 100000,
+        '100K': 1000000,
+        '1M': 10000000
+    }
 
     accounts_df = pd.read_csv(accounts_csv)
     
@@ -47,7 +44,7 @@ def AMLSim_preprocessing(dimension):
     edge_weights = defaultdict(float)
         
     # Process transactions by timestamp chunks to maintain balance accuracy
-    chunk_size = 100000
+    chunk_size = dict_dimension[dimension]
     
     # Read and process transactions chunk by chunk, sorting each chunk
     for chunk in pd.read_csv(transactions_csv, chunksize=chunk_size):
@@ -105,24 +102,21 @@ def PaySim_preprocessing(dimension):
 
     account_prop = {}
 
-    dataset_path = f"datasets/paysim/{dimension} users/rawLog.csv"
+    dataset_path = f"Datasets/paysim/{dimension} users/rawLog.csv"
 
     print("First pass: Identifying users and fraud accounts...")
     unique_users = set()
     fraud_accounts = set()
 
-    if dimension == '100':
-        chunk_size = 1000
-    elif dimension == '1K':
-        chunk_size = 10000
-    elif dimension == '10K':
-        chunk_size = 100000
-    elif dimension == '100K':
-        chunk_size = 1000000
-    elif dimension == '1M':
-        chunk_size = 10000000
+    dict_dimension = {
+        '100': 1000,
+        '1K': 10000,
+        '10K': 100000,
+        '100K': 1000000,
+        '1M': 10000000
+    }
 
-    for chunk in pd.read_csv(dataset_path, chunksize=chunk_size):
+    for chunk in pd.read_csv(dataset_path, chunksize=dict_dimension[dimension]):
         # Get unique users
         orig_users = chunk['nameOrig'].dropna().unique()
         dest_users = chunk['nameDest'].dropna().unique()
@@ -156,7 +150,7 @@ def PaySim_preprocessing(dimension):
     print("Second pass: Processing transactions and building matrices...")
     
     # Second pass: populate DataFrame and build transaction matrix
-    for chunk in pd.read_csv(dataset_path, chunksize=chunk_size):
+    for chunk in pd.read_csv(dataset_path, chunksize=dict_dimension[dimension]):
         for _, row in chunk.iterrows():
             step = int(row['step'])
             amount = float(row['amount'])
@@ -221,7 +215,7 @@ def PaySim_preprocessing(dimension):
 def Libra_preprocessing():
     account_prop = {}
 
-    dataset_path = 'datasets/libra/realdata/libra_380K.csv'
+    dataset_path = 'Datasets/libra/realdata/libra_380K.csv'
 
     transactions = pd.read_csv(dataset_path)
 
