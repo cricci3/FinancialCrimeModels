@@ -74,7 +74,7 @@ def compute_squic_matrix(Y, lambda_val, bias_matrix):
     return X, time
 
 
-def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
+def squic_fit_sparse(Y, lambda_val, eta):
     '''
     Sparse implementation of SQUIC-Fit
     
@@ -91,8 +91,10 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     '''
     start_time = time.time()
     
-    X1, _, _, _, _, _ = squic.run(Y, lambda_val)
+    X1, _, _, _, _, _ = squic.run(Y=Y, l=lambda_val)
     X1 = X1.tocsr() if not isspmatrix_csr(X1) else X1
+
+    kappa=0
     
     # Find negative off-diagonal elements < -kappa (upper triangle only)
     rows, cols, _ = find(triu(X1 < -kappa, k=1))
@@ -105,13 +107,14 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
                       shape=X1.shape).tocsr()
     
     # Create sparse Lambda matrix with eta where G is nonzero
-    Lambda = lil_matrix(X1.shape)
-    Lambda[G.nonzero()] = eta
-    Lambda = Lambda.tocsr()
+    Lambda_matrix = lil_matrix(X1.shape)
+    Lambda_matrix[G.nonzero()] = eta
+    Lambda_matrix = Lambda_matrix.tocsr()
     
-    X2, _, _, _, _, _ = squic.run(Y, lambda_val)
+    X2, _, _, _, _, _ = squic.run(Y=Y, l=lambda_val, M=Lambda_matrix)
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
-    
+
+    tau=0
     # Find negative off-diagonal elements < -tau
     rows, cols, vals = find(triu(X2 < -tau, k=1))
     
@@ -126,9 +129,11 @@ def squic_fit_sparse(Y, lambda_val, eta, kappa=0, tau=0):
     return X_final, end_time
 
 
-def squic_fit_matrix_sparse(Y, l, bias_matrix, tau=0):
+def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=0):
     '''
     Sparse implementation of function to pass a matrix as bias to SQUIC_Fit
+    [...] We define Λij = Mij if Mij!=0
+                and Λij = λ, if otherwise.
 
     Return:
     - X_final: adjacency matrix
@@ -136,10 +141,15 @@ def squic_fit_matrix_sparse(Y, l, bias_matrix, tau=0):
     '''
     start_time = time.time()
 
-    M_sparse = csr_matrix(bias_matrix)
+    if eta == 0:
+        M_sparse = csr_matrix(bias_matrix)
+    else: # Favor edges from the KNN graph
+        # Λij = η (λ/10) if KNN says i∼j
+        # Λij = λ otherwise
+        M_sparse = csr_matrix(bias_matrix) * eta
 
     # Step 4: Run SQUIC
-    X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
+    X2, _, _, _, _, _ = squic.run(Y=Y, l=l, M=M_sparse)
     
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
 
@@ -152,6 +162,7 @@ def squic_fit_matrix_sparse(Y, l, bias_matrix, tau=0):
     # X_final.setdiag(diag)
 
     # Find negative off-diagonal elements < -tau (only upper triangle to avoid duplicates)
+    tau=0
     rows, cols, vals = find(triu(X2 < -tau, k=1))  # k=1 excludes diagonal
 
     # Set values in X_final (symmetric update)
@@ -233,6 +244,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, pa
 
     for rho in lambdas:
         theta_dict[rho], end_time = compute_squic(Y_norm, lambda_val=rho)
+
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
@@ -326,7 +338,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
     W_matrices = {}
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/10)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
