@@ -134,12 +134,17 @@ def clustering_same_n(W_matrices, name, account_prop):
     
     return dict_cluster
 
-def clustering_optimal_number(results_squic, plot=False):
+def clustering_optimal_number(dimension, results_squic, plot=False):
     dict_cluster = {
         "louvain" : {},
         "spectral" : {},
         "dbscan" : {},
         "leiden" : {}
+    }
+
+    dbscan_params_dict = {
+        '1K' : {'epsilon' : 0.7, 'min_samples' : 7},
+        '10K' : {'epsilon' : 0.9999999999999999, 'min_samples' : 9}
     }
 
     for technique, matrices in results_squic.items():
@@ -154,6 +159,7 @@ def clustering_optimal_number(results_squic, plot=False):
             G = nx.from_scipy_sparse_array(X)
 
             # Louvain
+            print(f"Starting Louvain e Leiden")
             start = time.time()
             partition_louvain = community.louvain_communities(G)
             end_louv = time.time() - start
@@ -165,45 +171,55 @@ def clustering_optimal_number(results_squic, plot=False):
             partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
             end_leiden = time.time() - start
             dict_cluster['leiden'][rho] = partition_leiden
+            print(f"Done Louvain e Leiden")
 
-            # DBSCAN with multiple params
-            best_Q = -1
-            best_params = None
 
-            eps_range = np.linspace(0.1, 2.0, 20)
-            min_samples_range = range(3, 10)
+            if dimension == '100': # do grid search (fast and each rho have different params)
+                # DBSCAN with multiple params
+                best_Q = -1
+                best_params = None
 
-            print(f"Trying different params for DBSCAN for lambda = {rho}")
-            start = time.time()
-            for eps in tqdm(eps_range):
-                for min_samples in min_samples_range:
-                    dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
-                    labels = dbscan.fit_predict(X)
-                    
-                    # Ignore if all points are noise (-1) or single cluster
-                    if len(set(labels)) <= 1 or (set(labels) == {-1}):
-                        continue
+                eps_range = np.linspace(0.1, 2.0, 20)
+                min_samples_range = range(3, 10)
 
-                    partition_dbscan = labels_to_partition(labels)
+                print(f"Trying different params for DBSCAN for lambda = {rho}")
+                start = time.time()
+                for eps in tqdm(eps_range):
+                    for min_samples in min_samples_range:
+                        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                        labels = dbscan.fit_predict(X)
+                        
+                        # Ignore if all points are noise (-1) or single cluster
+                        if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                            continue
 
-                    # compute Q to evaluate
-                    db_Q = community.modularity(G, partition_dbscan)
-                    if db_Q > best_Q:
-                        best_Q = db_Q
-                        best_params = (eps, min_samples)
+                        partition_dbscan = labels_to_partition(labels)
 
-            if best_params is not None:
-                dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
-            else:
-                print("No suitable DBSCAN parameters found! DBSCAN with default params")
-                dbscan = DBSCAN()
+                        # compute Q to evaluate
+                        db_Q = community.modularity(G, partition_dbscan)
+                        if db_Q > best_Q:
+                            best_Q = db_Q
+                            best_params = (eps, min_samples)
 
-            labels_dbscan = dbscan.fit_predict(X)
+                if best_params is not None:
+                    print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
+                    dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
+                else:
+                    print("No suitable DBSCAN parameters found! DBSCAN with default params")
+                    dbscan = DBSCAN()
+            else: # bigger dataset -> slower grid search and also always same params between rhos
+                print("Skip DBSCAN")
+                pass
+                # dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
+                #                 min_samples=dbscan_params_dict[dimension]['min_samples'],
+                #                 metric='cosine')
+                
+            # labels_dbscan = dbscan.fit_predict(X)
             end_db = time.time() - start
 
             # Convert labels to list of sets
-            partition_dbscan = labels_to_partition(labels_dbscan)
-            dict_cluster['dbscan'][rho] = partition_dbscan
+            # partition_dbscan = labels_to_partition(labels_dbscan)
+            # dict_cluster['dbscan'][rho] = partition_dbscan
 
             # Spectral Clustering
             start = time.time()
@@ -327,16 +343,19 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
                 # G = nx.from_numpy_array(X)
                 G = nx.from_scipy_sparse_array(X)
 
+                print("List node_to_community")
                 node_to_community = {}
                 for idx, comm in enumerate(partition):
                     for node in comm:
                         node_to_community[node] = idx
-
+                print("done List node_to_community")
+                
                 n_cut = 0
                 r_cut = 0
 
                 clusters = set(node_to_community.values()) # set of clusters
 
+                print("Starting calculating rcut and ncut")
                 for cluster_id in clusters:
                     # Nodes in this cluster
                     cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
@@ -356,6 +375,7 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
                     # Normalized cut and ratio cut
                     r_cut += cut / size if size > 0 else 0
                     n_cut += cut / volume if volume > 0 else 0
+                print("Done calculating rcut and ncut")
 
                 int_metrics[l][method]["ncut"] = float(round(n_cut, 2))
                 int_metrics[l][method]["rcut"] = float(round(r_cut, 2))
