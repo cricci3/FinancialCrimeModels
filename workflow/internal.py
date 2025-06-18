@@ -58,14 +58,14 @@ def load_dataset():
         df, account_prop, trans_matrix = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
         # account prop for paysim is different, contains "class" also the type of user: B, C, M
-        df, account_prop, trans_matrix = PaySim_preprocessing(dimension)
+        df, account_prop = PaySim_preprocessing(dimension)
     elif name == 'LIBRA':
         # future implementation
         df, account_prop, trans_matrix = Libra_preprocessing()
     else:
         df = None
 
-    return df, name, dimension, account_prop, trans_matrix
+    return df, name, dimension, account_prop
 
 
 def extract_timeseries(df, name):
@@ -82,18 +82,20 @@ def extract_timeseries(df, name):
         for user in df.columns:
             if user.startswith('C'):
                 color = colors['Clients']
+                plt.plot(df.index, df[user], color=color, alpha=0.6)
             elif user.startswith('B'):
                 color = colors['Bank']
             else:
                 color = colors['Merchants']
-            plt.plot(df.index, df[user], color=color, alpha=0.6)
+                plt.plot(df.index, df[user], color=color, alpha=0.6)
+            # plt.plot(df.index, df[user], color=color, alpha=0.6)
         
         plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
     
 
         legend_elements = [
             Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
-            Line2D([0], [0], color='crimson', lw=4, label='Bank'),
+            # Line2D([0], [0], color='crimson', lw=4, label='Bank'),
             Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
         ]
 
