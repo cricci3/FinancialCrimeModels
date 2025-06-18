@@ -7,6 +7,11 @@ import networkx as nx
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
 from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+import numpy as np
+from scipy.sparse.linalg import eigsh
+from sklearn.preprocessing import normalize
+from scipy.sparse import issparse
+import logging
 
 
 def compute_normalized_laplacian(adj):
@@ -28,38 +33,36 @@ def compute_normalized_laplacian(adj):
 
     # normalized Laplacian = D^(-1/2) * L * D^(-1/2)
     L_norm = D_inv_sqrt @ L @ D_inv_sqrt
-
-    # # Use normalized Laplacian formula directly:  I - D^(-1\2)AD^(-1\2) taken from https://en.wikipedia.org/wiki/Laplacian_matrix
-    # # It avoids creating the potentially large D - A explicitly
-    # I = identity(adj.shape[0], format='csr')
-    # L_norm = I - D_inv_sqrt @ adj @ D_inv_sqrt
-
+    
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, k=20):
+def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3):
     """
-    Compute the smallest k eigenvalues of the Laplacian matrix (sparse).
+    Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
+    Retries with adjusted parameters if convergence is not reached.
     """
-    print("Starting computing eigens")
     k = k+1
+    for attempt in range(max_retries):
+        try:
+            eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
+            
+            if len(eigenvalues) == k or (len(eigenvalues) > 2 and len(eigenvalues) < k):
+                print(" Eigenvalues:", eigenvalues)
 
-    eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA') # SM or SA
+                # Sort
+                idx = np.argsort(eigenvalues)
+                eigenvalues = eigenvalues[idx]
+                eigenvectors = eigenvectors[:, idx]
 
-    # Order
-    idx = np.argsort(eigenvalues)
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-    
-    # Discard first eigen (~0)
-    eigenvalues = eigenvalues[1:]
-    eigenvectors = eigenvectors[:, 1:]
+                # Discard first eigen (~0)
+                # eigenvalues[1:], eigenvectors[:, 1:]
+                return eigenvalues, eigenvectors
+        except Exception as e:
+            print(f"Attempt {attempt+1} failed: {e}")
 
-    print("Done computing eigens")
-
-    # eigenvalues = np.sort(eigenvalues)
-
-    return eigenvalues, eigenvectors
+    print(f"Failed to compute {k} eigenvalues after {max_retries} retries.")
+    return None, None
 
 
 def compute_relative_eigengap(eigenvalues):
@@ -136,7 +139,6 @@ def find_optimal_clusters(graph, plot=True):
 
 
 def compute_spectral_clustering(eigenvectors, k, method='kmeans', plot=False):
-    print("Starting computing spectral clustering")
     selected_eigenvectors = eigenvectors[:, :k]
     X_normalized = normalize(selected_eigenvectors, norm='l2')
     
@@ -148,14 +150,10 @@ def compute_spectral_clustering(eigenvectors, k, method='kmeans', plot=False):
         Z = linkage(X_normalized, method='ward')
 
         if plot == True:
-            # Plot dendrogram (optional)
             plt.figure(figsize=(10, 5))
             dendrogram(Z)
-            plt.title("Dendrogram of Spectral Embedding")
             plt.show()
 
         labels = fcluster(Z, t=k, criterion='maxclust')
     
-    print("Done computing spectral clustering")
-
     return labels
