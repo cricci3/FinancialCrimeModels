@@ -16,7 +16,7 @@ from collections import defaultdict
 
 from workflow.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
-from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors, debug_spectral_clustering, compute_normalized_laplacian_fixed, compute_eigenvalues_eigenvectors_fixed, diagnose_adjacency_matrix, remove_isolated_nodes
+from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
 import igraph as ig
 import leidenalg as la
 
@@ -264,46 +264,42 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
 
     for technique, matrices in results_squic.items():
         for rho, X in matrices.items():
-            if rho != 0.9997:
-                # Ensure all off-diagonal entries are positive
-                X = np.abs(X) 
+            # Ensure all off-diagonal entries are positive
+            X = np.abs(X) 
 
-                # Ensure diagonal entries are zero
-                X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+            # Ensure diagonal entries are zero
+            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-                # Create a graph from matrix X
-                G = nx.from_scipy_sparse_array(X)
+            # Create a graph from matrix X
+            G = nx.from_scipy_sparse_array(X)
 
-                print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
+            print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
-                print(f"Computing spectral clustering for rho {rho}...")
-                start = time.time()
+            print(f"Computing spectral clustering for rho {rho}...")
+            start = time.time()
 
-                # eigenvalues, eigenvectors, degrees = debug_spectral_clustering(X)
-
-                # print(f"for rho {rho} eigenvalues: {eigenvalues}")
-                # print(f"for rho {rho} eigenvectors: {eigenvectors}")
-                # print(f"for rho {rho} degrees: {degrees}")
-
-                # X, _ = remove_isolated_nodes(X)
-
-                if nx.is_connected(G): # if method == 'scikit-learn'
-                    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
-                    labels_spectral = clustering.fit_predict(X)
-                # elif method == 'implemented':
-                else:
-                    # diagnose_adjacency_matrix(X)
-                    L_norm = compute_normalized_laplacian(X) # fast
-                    _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
+            if nx.is_connected(G): # if method == 'scikit-learn'
+                print(f"For rho {rho} G is connected -> using scikit-learn")
+                clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+                labels_spectral = clustering.fit_predict(X)
+            # elif method == 'implemented':
+            else:
+                print(f"For rho {rho} G not is connected -> using implemented algorithm")
+                L_norm = compute_normalized_laplacian(X) # fast
+                _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
+                if eigenvectors is not None:
                     labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
-                
-                end = time.time() - start
+                    # Convert labels to list of sets
+                    partition_spectral = labels_to_partition(labels_spectral)
 
-                print(f"For rho {rho} takes {end} seconds")
-                # Convert labels to list of sets
-                partition_spectral = labels_to_partition(labels_spectral)
+                    dict_cluster[technique][rho] = partition_spectral
+                else:
+                    print(f"Unable to compute Spectral clustering for rho {rho}")
+            
+            end = time.time() - start
 
-                dict_cluster[technique][rho] = partition_spectral
+            print(f"For rho {rho} takes {round(end, 2)} seconds")
+            
 
     return dict_cluster
 
