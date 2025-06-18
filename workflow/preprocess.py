@@ -194,10 +194,10 @@ def PaySim_preprocessing(dimension):
         del chunk
     
     # Convert edge_weights dict to sparse matrix
-    print("Converting transaction data to sparse matrix...")
-    rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
-    transaction_matrix = coo_matrix((data, (rows, cols)), 
-                                      shape=(max_account_id, max_account_id)).tolil()
+    # print("Converting transaction data to sparse matrix...")
+    # rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
+    # transaction_matrix = coo_matrix((data, (rows, cols)), 
+    #                                   shape=(max_account_id, max_account_id)).tolil()
    
     # Create account properties dictionary
     account_prop = {
@@ -209,7 +209,7 @@ def PaySim_preprocessing(dimension):
         for i, user in enumerate(unique_users)
     }
 
-    return df, account_prop, transaction_matrix
+    return df, account_prop
 
 
 def Libra_preprocessing():
