@@ -6,6 +6,7 @@ import json
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
 import pandas as pd
+import numpy as np
 import os
 
 
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     user_input = ask_yes_no("\nDo you want to load data?")
 
     if user_input == 'Y':
-        dimension = ask_input("Which dimension? (100/1K/10K/100K/1M)").upper()
+        dimension = ask_input("Which dimension (100/1K/10K/100K/1M)?").upper()
         path = 'paysim_data_saved'
 
         try:
@@ -63,9 +64,51 @@ if __name__ == '__main__':
                 chunks.append(chunk)
 
             Y_norm = pd.concat(chunks, ignore_index=True)
+            print(f"Head of Y_norm df:")
+            print(Y_norm.head())
+
+            print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
+
+            std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
+
+            if not(std_dev > 0.9 and std_dev <= 1):
+                print("Mean std per row (should be 1):", std_dev)
+                print("Max:", np.max(Y_norm))
+                print("Min:", np.min(Y_norm))
+
+                # Step 1: Convert DataFrame to NumPy array for performance
+                Y = Y_norm.to_numpy()  # shape: (num_users, num_days)
+
+                # Step 2: Compute row-wise standard deviation
+                stds = np.std(Y, axis=1)
+                safe_stds = np.clip(stds, 1e-8, None)  # Avoid division by near-zero
+
+                # Step 3: Normalize each row by its std using broadcasting
+                Y = Y / safe_stds[:, np.newaxis]
+
+                Y_norm = pd.DataFrame(Y, index=Y_norm.index, columns=Y_norm.columns)
+
+                print(f"Head of Y_norm df:")
+                print(Y_norm.head())
+
+                print("Mean std after normalization (should be ~1):", np.mean(np.std(Y_norm, axis=1)))
+                print("Max:", np.max(Y_norm))
+                print("Min:", np.min(Y_norm))
+            else:
+                print("Mean std per row (should be 1):", std_dev)
 
             # Load pre-saved knn_matrix
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
+
+            # Print knn matrix
+            plt.figure(figsize=(7, 7))
+            plt.spy(knn_matrix, markersize=5)
+            plt.ylabel("Users", fontsize=18)
+            plt.savefig(f'images/{dimension}/knn_matrix')
+            plt.show()
+
+            print("Shape KNN:", knn_matrix.shape)
+            print("Non-zeros KNN:", knn_matrix.nnz)
             
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
@@ -81,9 +124,9 @@ if __name__ == '__main__':
             exit(1)
         
     else: # Normal run
-        Y, name, dimension, account_prop, _ = load_dataset()
+        Y, name, dimension, account_prop = load_dataset()
 
-        extract_timeseries(Y, name)
+        # extract_timeseries(Y, name)
 
         Y_norm = normalization(Y, name)
 
@@ -92,12 +135,17 @@ if __name__ == '__main__':
             '1K' : 8,
             '10K' : 4,
             '100K' : 2,
-            '1M' : 2
+            '1M' : 2 # then remove self loops
         }
 
         nbrs = NearestNeighbors(n_neighbors=n_neigs[dimension], metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
+
+        if dimension == '1M':
+            # Remove self-loops
+            knn_matrix.setdiag(0)
+            knn_matrix.eliminate_zeros()
         
         # Ask user if want to save the data for next runs
         if ask_yes_no("Do you want to cache this data?") == 'Y':
@@ -120,7 +168,9 @@ if __name__ == '__main__':
 
     # Run SQUIC_fit
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
-        
+
+        os.makedirs(f'images/{dimension}/', exist_ok=True)
+
         # Print knn matrix
         plt.figure(figsize=(7, 7))
         plt.spy(knn_matrix, markersize=5)
@@ -164,7 +214,7 @@ if __name__ == '__main__':
     }
 
     # Results
-    dict_cluster = clustering_2_communities(results_squic, dimension, squic_method, method=dict_method[dimension])
+    dict_cluster = clustering_2_communities(results_squic, squic_method, method=dict_method[dimension])
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
