@@ -68,7 +68,7 @@ def load_dataset():
     return df, name, dimension, account_prop
 
 
-def extract_timeseries(df, name):
+def extract_timeseries(df, name, dimension):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(7,7))
@@ -78,6 +78,8 @@ def extract_timeseries(df, name):
               'Merchants': 'darkturquoise'}
 
     if name == 'PAYSIM':
+        bank_dimension = ['100', '1K', '10K']
+
         # Plot each column (account balance) as a line
         for user in df.columns:
             if user.startswith('C'):
@@ -85,6 +87,8 @@ def extract_timeseries(df, name):
                 plt.plot(df.index, df[user], color=color, alpha=0.6)
             elif user.startswith('B'):
                 color = colors['Bank']
+                if dimension in bank_dimension:
+                    plt.plot(df.index, df[user], color=color, alpha=0.6)
             else:
                 color = colors['Merchants']
                 plt.plot(df.index, df[user], color=color, alpha=0.6)
@@ -92,12 +96,17 @@ def extract_timeseries(df, name):
         
         plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
     
-
-        legend_elements = [
-            Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
-            # Line2D([0], [0], color='crimson', lw=4, label='Bank'),
-            Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
-        ]
+        if dimension in bank_dimension:
+            legend_elements = [
+                Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
+                Line2D([0], [0], color='crimson', lw=4, label='Bank'),
+                Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
+            ]
+        else:
+            legend_elements = [
+                Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
+                Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
+            ]
 
         plt.legend(handles=legend_elements, fontsize=16)
     
