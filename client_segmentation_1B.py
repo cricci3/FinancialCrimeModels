@@ -158,9 +158,15 @@ if __name__ == '__main__':
         results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
 
     # Results
-    dict_cluster = clustering_optimal_number(results_squic, plot=False)
+    print("Starting doing clustering")
+    dict_cluster = clustering_optimal_number(dimension, results_squic, plot=False)
+    print("Done doing clustering")
 
+    print(dict_cluster.keys())
+
+    print("Starting doing metrics")
     metrics = internal_metrics(dict_cluster, results_squic, leiden=True)
+    print("Done doing metrics")
 
     for rho, data in metrics.items():
         print(f"For rho {rho}:")
