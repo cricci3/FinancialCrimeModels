@@ -41,7 +41,7 @@ def AMLSim_preprocessing(dimension):
         df.loc[:, acc_id] = initial_balances[acc_id]
     
     current_balances = initial_balances.copy()
-    edge_weights = defaultdict(float)
+    # edge_weights = defaultdict(float)
         
     # Process transactions by timestamp chunks to maintain balance accuracy
     chunk_size = dict_dimension[dimension]
@@ -69,7 +69,7 @@ def AMLSim_preprocessing(dimension):
                 df.loc[timestamp:, receiver_id] = current_balances[receiver_id]
             
             # Update transaction matrix
-            edge_weights[(sender_id, receiver_id)] += amount
+            # edge_weights[(sender_id, receiver_id)] += amount
             
             # Track fraud
             if is_fraud:
@@ -81,12 +81,12 @@ def AMLSim_preprocessing(dimension):
     # Create transaction matrix and account properties (same as before)
     max_account_id = len(unique_accounts)
     
-    if edge_weights:
-        rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
-        transaction_matrix = coo_matrix((data, (rows, cols)), 
-                                      shape=(max_account_id, max_account_id)).tolil()
-    else:
-        transaction_matrix = lil_matrix((max_account_id, max_account_id), dtype=float)
+    # if edge_weights:
+    #     rows, cols, data = zip(*[(i, j, amt) for (i, j), amt in edge_weights.items()])
+    #     transaction_matrix = coo_matrix((data, (rows, cols)), 
+    #                                   shape=(max_account_id, max_account_id)).tolil()
+    # else:
+    #     transaction_matrix = lil_matrix((max_account_id, max_account_id), dtype=float)
     
     account_prop = {}
     for i, acc_id in enumerate(unique_accounts):
@@ -94,7 +94,7 @@ def AMLSim_preprocessing(dimension):
             "fraud": acc_id in fraud_accounts,
         }
     
-    return df, account_prop, transaction_matrix
+    return df, account_prop
 
 
 def PaySim_preprocessing(dimension):
@@ -229,7 +229,7 @@ def Libra_preprocessing():
                         transactions.id_destination.max()) + 1
 
     # Initialize transaction matrix as sparse
-    matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
+    # trans_matrix = lil_matrix((max_account_id, max_account_id), dtype=int)
 
 
     balances = defaultdict(dict)   # {account: {step: balance}}
@@ -240,8 +240,8 @@ def Libra_preprocessing():
         step = int(row.step)
         amount = round(float(row.cum_amount), 3)  
 
-        # Update sparse matrix
-        matrix[source, destination] += amount
+        # Update sparse trans_matrix
+        # trans_matrix[source, destination] += amount
 
         # Initialize balances if user appears for the first time
         if source not in balances:
@@ -276,4 +276,4 @@ def Libra_preprocessing():
 
     df = df[columns_as_int]
 
-    return df, account_prop, matrix
+    return df, account_prop

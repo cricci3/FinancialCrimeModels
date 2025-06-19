@@ -55,13 +55,13 @@ def load_dataset():
             continue
 
     if name == 'AMLSIM':
-        df, account_prop, trans_matrix = AMLSim_preprocessing(dimension)
+        df, account_prop = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
         # account prop for paysim is different, contains "class" also the type of user: B, C, M
         df, account_prop = PaySim_preprocessing(dimension)
     elif name == 'LIBRA':
         # future implementation
-        df, account_prop, trans_matrix = Libra_preprocessing()
+        df, account_prop = Libra_preprocessing()
     else:
         df = None
 
