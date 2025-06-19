@@ -295,12 +295,11 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
                     dict_cluster[technique][rho] = partition_spectral
                 else:
                     print(f"Unable to compute Spectral clustering for rho {rho}")
+                    dict_cluster[technique][rho] = None
             
             end = time.time() - start
 
             print(f"For rho {rho} takes {round(end, 2)} seconds")
-            
-
     return dict_cluster
 
 
@@ -454,41 +453,45 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
 
     for method in dict_cluster:
         for rho, partition in dict_cluster[method].items():
+            if not dict_cluster.get(method, {}).get(rho):
+                metrics[method][rho]['spectral']['ARI'] = 0.0
+                metrics[method][rho]['spectral']['f1'] = 0.5
 
-            X = results_squic[method][rho]
-
-            # Ensure matrix is in proper form
-            X = np.abs(X)  # Make positive
-            X.setdiag(0)   # Zero out diagonal
-
-            G = nx.from_scipy_sparse_array(X)
-
-            # Convert partition (list of sets) to labels
-            cluster_labels = partition_to_labels(partition, n)
-
-            # print(f"\nfor rho {rho}: true labels and then cluster labels")
-            # print(true_labels)
-            # print(cluster_labels)
-
-            # Number of clusters
-            metrics[method][rho]['spectral']['nCluster'] = len(partition)
-
-            # Compute ARI
-            ari = adjusted_rand_score(true_labels, cluster_labels)
-            metrics[method][rho]['spectral']['ARI'] = round(ari, 2)
-
-            # Compute F1 score (test both label alignments)
-            f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
-            f1b = f1_score(true_labels, cluster_labels, average='weighted')
-
-            # Choose the F1 score that is closer to ARI (normalized between 0:1)
-            normalized_ari = (ari + 1)/2
-            if abs(f1a - normalized_ari) < abs(f1b - normalized_ari):
-                f1 = f1a
             else:
-                f1 = f1b
+                X = results_squic[method][rho]
 
-            metrics[method][rho]['spectral']['f1'] = round(f1, 2)
+                # Ensure matrix is in proper form
+                X = np.abs(X)  # Make positive
+                X.setdiag(0)   # Zero out diagonal
+
+                G = nx.from_scipy_sparse_array(X)
+
+                # Convert partition (list of sets) to labels
+                cluster_labels = partition_to_labels(partition, n)
+
+                # print(f"\nfor rho {rho}: true labels and then cluster labels")
+                # print(true_labels)
+                # print(cluster_labels)
+
+                # Number of clusters
+                metrics[method][rho]['spectral']['nCluster'] = len(partition)
+
+                # Compute ARI
+                ari = adjusted_rand_score(true_labels, cluster_labels)
+                metrics[method][rho]['spectral']['ARI'] = round(ari, 2)
+
+                # Compute F1 score (test both label alignments)
+                f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
+                f1b = f1_score(true_labels, cluster_labels, average='weighted')
+
+                # Choose the F1 score that is closer to ARI (normalized between 0:1)
+                normalized_ari = (ari + 1)/2
+                if abs(f1a - normalized_ari) < abs(f1b - normalized_ari):
+                    f1 = f1a
+                else:
+                    f1 = f1b
+
+                metrics[method][rho]['spectral']['f1'] = round(f1, 2)
 
     return metrics
 

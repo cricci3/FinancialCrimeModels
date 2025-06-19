@@ -101,11 +101,11 @@ if __name__ == '__main__':
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
 
             # Print knn matrix
-            plt.figure(figsize=(7, 7))
-            plt.spy(knn_matrix, markersize=5)
-            plt.ylabel("Users", fontsize=18)
-            plt.savefig(f'images/{dimension}/knn_matrix')
-            plt.show()
+            # plt.figure(figsize=(7, 7))
+            # plt.spy(knn_matrix, markersize=5)
+            # plt.ylabel("Users", fontsize=18)
+            # plt.savefig(f'images/{dimension}/knn_matrix')
+            # plt.show()
 
             print("Shape KNN:", knn_matrix.shape)
             print("Non-zeros KNN:", knn_matrix.nnz)
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     else: # Normal run
         Y, name, dimension, account_prop = load_dataset()
 
-        # extract_timeseries(Y, name)
+        # extract_timeseries(Y, name, dimension)
 
         Y_norm = normalization(Y, name)
 
@@ -172,11 +172,11 @@ if __name__ == '__main__':
         os.makedirs(f'images/{dimension}/', exist_ok=True)
 
         # Print knn matrix
-        plt.figure(figsize=(7, 7))
-        plt.spy(knn_matrix, markersize=5)
-        plt.ylabel("Users", fontsize=18)
-        plt.savefig(f'images/{dimension}/knn_matrix')
-        plt.show()
+        # plt.figure(figsize=(7, 7))
+        # plt.spy(knn_matrix, markersize=5)
+        # plt.ylabel("Users", fontsize=18)
+        # plt.savefig(f'images/{dimension}/knn_matrix')
+        # plt.show()
 
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
@@ -215,6 +215,8 @@ if __name__ == '__main__':
 
     # Results
     dict_cluster = clustering_2_communities(results_squic, squic_method, method=dict_method[dimension])
+
+    print(dict_cluster[squic_method].keys())
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
