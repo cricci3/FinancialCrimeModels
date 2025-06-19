@@ -160,10 +160,10 @@ def PaySim_preprocessing(dimension):
             dest_user = row['nameDest']
             
             # Build transaction matrix (only if both users are valid)
-            if orig_user in user_to_id and dest_user in user_to_id:
-                i = user_to_id[orig_user]
-                j = user_to_id[dest_user]
-                edge_weights[(i, j)] += amount
+            # if orig_user in user_to_id and dest_user in user_to_id:
+            #     i = user_to_id[orig_user]
+            #     j = user_to_id[dest_user]
+            #     edge_weights[(i, j)] += amount
             
             # Process origin user for balance DataFrame
             old_balance = float(row['oldBalanceOrig'])
@@ -233,12 +233,18 @@ def Libra_preprocessing():
 
 
     balances = defaultdict(dict)   # {account: {step: balance}}
+    fraud_accounts = set() # to track fraudolent accounts (nr_reports = 1)
+    unique_accounts = set()
 
     for row in transactions.itertuples(index=False):
         source = int(row.id_source)
         destination = int(row.id_destination)
         step = int(row.step)
         amount = round(float(row.cum_amount), 3)  
+        report = int(row.nr_reports)
+
+        unique_accounts.update(source)
+        unique_accounts.update(destination)
 
         # Update sparse trans_matrix
         # trans_matrix[source, destination] += amount
@@ -256,6 +262,10 @@ def Libra_preprocessing():
         # Update balances for this step
         balances[source][step] = round(prev_balance_source - amount, 3)  # Source loses money
         balances[destination][step] = round(prev_balance_destination + amount, 3)  # Destination gains money
+
+        if report > 0:
+            fraud_accounts.update(source)
+            fraud_accounts.update(destination)
 
     # Create DataFrame
     df = pd.DataFrame.from_dict(balances, orient='index').T
@@ -275,5 +285,11 @@ def Libra_preprocessing():
     columns_as_int.sort()
 
     df = df[columns_as_int]
+
+    account_prop = {}
+    for acc_id in unique_accounts:
+        account_prop[acc_id] = {
+            "fraud": acc_id in fraud_accounts,
+        }
 
     return df, account_prop
