@@ -38,12 +38,13 @@ def labels_to_partition(labels):
     return list(clusters.values())
 
 
-def partition_to_labels(partition, n_nodes):
+def partition_to_labels(partition, n_nodes, index_map):
     """Convert list-of-sets partition to flat label list."""
     labels = np.zeros(n_nodes, dtype=int)
-    for i, community in enumerate(partition):
-        for node in community:
-            labels[node] = i
+    for cluster_id, cluster_nodes in enumerate(partition):
+        for node in cluster_nodes:
+            if node in index_map:
+                labels[index_map[node]] = cluster_id
     return labels
 
 
@@ -273,6 +274,43 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
+            connected_components = list(nx.connected_components(G))
+            component_sizes = [len(c) for c in connected_components]
+            component_sizes.sort(reverse=True)
+
+            print(f"Total components: {len(component_sizes)}")
+            print(f"Top 5 component sizes: {component_sizes[:5]}")
+
+            print(f"N CC before = {len(connected_components)}")
+
+            # Filter out small components
+            total_nodes = G.number_of_nodes()
+            min_size = total_nodes // 1000
+
+            # Nodes to keep (in large enough components)
+            nodes_to_keep = set()
+            for component in connected_components:
+                if len(component) >= min_size:
+                    nodes_to_keep.update(component) # insert into nodes_to_keep, nodes in component
+
+            # Create new graph with only the relevant nodes
+            G_filtered = G.subgraph(nodes_to_keep).copy()
+
+            connected_components = list(nx.connected_components(G_filtered))
+            print(f"N CC after = {len(connected_components)}")
+
+            A_filtered = nx.to_scipy_sparse_array(G_filtered)
+
+            plt.figure(figsize=(7, 7))
+            plt.spy(A_filtered, markersize=5)
+            plt.ylabel("Users", fontsize=18)
+            plt.tick_params(axis='x', labelsize=18)
+            plt.tick_params(axis='y', labelsize=18)  
+            plt.show()
+
+            # Keep track of node indices
+            filtered_node_indices = list(G_filtered.nodes)
+
             print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
             print(f"Computing spectral clustering for rho {rho}...")
@@ -285,7 +323,7 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
             # elif method == 'implemented':
             else:
                 print(f"For rho {rho} G not is connected -> using implemented algorithm")
-                L_norm = compute_normalized_laplacian(X) # fast
+                L_norm = compute_normalized_laplacian(A_filtered) # fast
                 _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
                 if eigenvectors is not None:
                     labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
@@ -300,7 +338,7 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
             end = time.time() - start
 
             print(f"For rho {rho} takes {round(end, 2)} seconds")
-    return dict_cluster
+    return dict_cluster, filtered_node_indices
 
 
 def internal_metrics(dict_cluster, W_matrices, leiden=False):
@@ -435,7 +473,7 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
     return metrics
 
 
-def ARI_fscore(dict_cluster, results_squic, account_prop):
+def ARI_fscore(dict_cluster, results_squic, account_prop, node_indices):
     metrics = {
         method: {
             rho: {
@@ -444,12 +482,14 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
         } for method in dict_cluster.keys()
     }
 
-    n = len(account_prop)
-    class_labels = np.array([account_prop[i]["class"] for i in range(n)])
+    # n = len(account_prop)
+    # class_labels = np.array([account_prop[i]["class"] for i in range(n)])
+    class_labels = np.array([account_prop[i]["class"] for i in node_indices])
 
     # Convert class labels to 0/1
     le = LabelEncoder()
     true_labels = le.fit_transform(class_labels)
+    n = len(node_indices)
 
     for method in dict_cluster:
         for rho, partition in dict_cluster[method].items():
@@ -466,8 +506,11 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
 
                 G = nx.from_scipy_sparse_array(X)
 
+                # Create a mapping from original index -> filtered index
+                index_map = {orig_idx: i for i, orig_idx in enumerate(node_indices)}
+
                 # Convert partition (list of sets) to labels
-                cluster_labels = partition_to_labels(partition, n)
+                cluster_labels = partition_to_labels(partition, n, index_map)
 
                 # print(f"\nfor rho {rho}: true labels and then cluster labels")
                 # print(true_labels)
