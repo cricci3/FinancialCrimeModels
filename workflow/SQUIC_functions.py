@@ -131,9 +131,11 @@ def squic_fit_sparse(Y, lambda_val, eta):
 
 def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=0):
     '''
-    Sparse implementation of function to pass a matrix as bias to SQUIC_Fit
+    Sparse implementation of SQUIC Fit with bias
     [...] We define Λij = Mij if Mij!=0
                 and Λij = λ, if otherwise.
+    
+    SQUIC Fit algorithm but we skip first SQUIC call
 
     Return:
     - X_final: adjacency matrix
@@ -141,34 +143,34 @@ def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=0):
     '''
     start_time = time.time()
 
+    # Construct Lambda matrix (bias)
     if eta == 0:
-        M_sparse = csr_matrix(bias_matrix)
+        L_matrix = csr_matrix(bias_matrix)
     else: # Favor edges from the KNN graph
-        # Λij = η (λ/10) if KNN says i∼j
+        # Λij = η if KNN says i∼j
         # Λij = λ otherwise
-        M_sparse = csr_matrix(bias_matrix) * eta
+        L_matrix = csr_matrix(bias_matrix) * eta
 
-    # Step 4: Run SQUIC
-    X2, _, _, _, _, _ = squic.run(Y=Y, l=l, M=M_sparse)
+    # Run SQUIC with bias
+    X2, _, _, _, _, _ = squic.run(Y=Y, l=l, M=L_matrix)
+
+    X2.setdiag(0)
     
+    # Ensure is spare
     X2 = X2.tocsr() if not isspmatrix_csr(X2) else X2
 
-    # Step 5: Construct X_final
-    n = X2.shape[0]
-    X_final = lil_matrix((n, n), dtype=X2.dtype)
-
-    # Copy the diagonal
-    # diag = X2.diagonal()
-    # X_final.setdiag(diag)
-
     # Find negative off-diagonal elements < -tau (only upper triangle to avoid duplicates)
-    tau=0
-    rows, cols, vals = find(triu(X2 < -tau, k=1))  # k=1 excludes diagonal
+    rows, cols, vals = find(triu(X2, k=1))  # k=1 excludes diagonal
 
-    # Set values in X_final (symmetric update)
+    # Construct X_final
+    X_final = lil_matrix(X2.shape, dtype=X2.dtype) # I want to save X2 into a sparse matrix, so create nxn sparse matrix
+
+    # Set values in X_final
     for i, j, val in zip(rows, cols, vals):
-        X_final[i, j] = X2[i, j]
-        X_final[j, i] = X2[j, i]
+        if val < 0: # Store absolute value of negative entry
+            abs_val = abs(val)
+            X_final[i, j] = abs_val
+            X_final[j, i] = abs_val  # symmetric
 
     # Convert back to CSR
     X_final = X_final.tocsr()
@@ -338,7 +340,8 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
     W_matrices = {}
 
     for rho in lambdas:
-        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/10)
+        # W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/100)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
