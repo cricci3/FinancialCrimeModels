@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 import networkx as nx
 from networkx.algorithms import community
@@ -253,7 +254,7 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
     return dict_cluster
 
 
-def clustering_2_communities(results_squic, squic_method, method='scikit-learn'):
+def clustering_2_communities(results_squic, squic_method):
     '''
     if method='scikit-learn' use spectral clustering of this lib
     else use spectral clustering implemented in spectral_clustering.py file
@@ -274,24 +275,73 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            connected_components = list(nx.connected_components(G))
-            component_sizes = [len(c) for c in connected_components]
-            component_sizes.sort(reverse=True)
+            # connected_components = list(nx.connected_components(G))
+            # component_sizes = [len(c) for c in connected_components]
+            # component_sizes.sort(reverse=True)
 
-            print(f"Total components: {len(component_sizes)}")
-            print(f"Top 5 component sizes: {component_sizes[:5]}")
+            # sorted_components = sorted(connected_components, key=len, reverse=True)
+            # top_k = 5
+            # top_components = sorted_components[:top_k]
 
-            print(f"N CC before = {len(connected_components)}")
+            # print(f"\nFor rho {rho}: ")
+            # print(f"Total components: {len(component_sizes)}")
+            # print(f"Top 5 component sizes: {component_sizes[:5]}")
+
+            # # Step 2: Map node index to component ID
+            # node_to_color_group = {}  # node_id -> 0,1,2,3,4 for top 5, -1 for rest
+
+            # for i, comp in enumerate(top_components):
+            #     for node in comp:
+            #         node_to_color_group[node] = i
+
+            # # All other nodes are assigned group -1
+            # for node in range(X.shape[0]):
+            #     if node not in node_to_color_group:
+            #         node_to_color_group[node] = -1
+
+            # # Step 3: Convert sparse matrix to COO format for coordinate access
+            # X_coo = X.tocoo()
+
+            # # Step 4: Prepare color map for 6 groups (5 top + "other")
+            # colors = ['red', 'green', 'blue', 'orange', 'purple', 'gray']
+            # group_coords = {i: ([], []) for i in range(-1, top_k)}  # group -> (rows, cols)
+
+            # for row, col in zip(X_coo.row, X_coo.col):
+            #     group = node_to_color_group.get(row, -1)
+            #     # Only plot upper triangle (or all if undirected)
+            #     if row <= col:
+            #         group_coords[group][0].append(row)
+            #         group_coords[group][1].append(col)
+
+            # # Step 5: Plot
+            # plt.figure(figsize=(8, 8))
+            # for group_id, (rows, cols) in group_coords.items():
+            #     plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Group {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
+
+            # plt.xlabel("Users", fontsize=14)
+            # plt.ylabel("Users", fontsize=14)
+            # plt.title("Adjacency Matrix with Top 5 Components Colored", fontsize=16)
+            # plt.legend(markerscale=6, fontsize=10, loc='upper right')
+            # plt.gca().invert_yaxis()  # Optional: to match spy() orientation
+            # plt.tight_layout()
+            # plt.show()
 
             # Filter out small components
-            total_nodes = G.number_of_nodes()
-            min_size = total_nodes // 1000
+            # total_nodes = G.number_of_nodes()
+            # min_size = total_nodes // 100
 
             # Nodes to keep (in large enough components)
-            nodes_to_keep = set()
-            for component in connected_components:
-                if len(component) >= min_size:
-                    nodes_to_keep.update(component) # insert into nodes_to_keep, nodes in component
+            # nodes_to_keep = set()
+            # for component in connected_components:
+            #     if len(component) >= min_size:
+            #         nodes_to_keep.update(component) # insert into nodes_to_keep, nodes in component
+            
+            # Sort components by size (descending)
+            sorted_components = sorted(connected_components, key=len, reverse=True)
+
+            # Keep only the top 2 largest
+            top_k = 2
+            nodes_to_keep = set().union(*sorted_components[:top_k])
 
             # Create new graph with only the relevant nodes
             G_filtered = G.subgraph(nodes_to_keep).copy()
@@ -316,11 +366,10 @@ def clustering_2_communities(results_squic, squic_method, method='scikit-learn')
             print(f"Computing spectral clustering for rho {rho}...")
             start = time.time()
 
-            if nx.is_connected(G): # if method == 'scikit-learn'
+            if nx.is_connected(G):
                 print(f"For rho {rho} G is connected -> using scikit-learn")
                 clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
                 labels_spectral = clustering.fit_predict(X)
-            # elif method == 'implemented':
             else:
                 print(f"For rho {rho} G not is connected -> using implemented algorithm")
                 L_norm = compute_normalized_laplacian(A_filtered) # fast
@@ -635,4 +684,56 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
         os.makedirs(f'images/{dimension}', exist_ok=True)
         plt.savefig(f"images/{dimension}/ARI_F1_{squic_method}")
         print(f"Plot saved in images/{dimension}/ARI_F1_{squic_method}")
+    plt.show()
+
+
+def study_CC(matrix):
+    G = nx.from_scipy_sparse_array(matrix)
+    connected_components = list(nx.connected_components(G))
+    component_sizes = [len(c) for c in connected_components]
+    component_sizes.sort(reverse=True)
+
+    sorted_components = sorted(connected_components, key=len, reverse=True)
+    top_k = 5
+    top_components = sorted_components[:top_k]
+
+    print(f"Total components: {len(component_sizes)}")
+    print(f"Top 5 component sizes: {component_sizes[:5]}")
+
+    # Step 2: Map node index to component ID
+    node_to_color_group = {}  # node_id -> 0,1,2,3,4 for top 5, -1 for rest
+
+    for i, comp in enumerate(top_components):
+        for node in comp:
+            node_to_color_group[node] = i
+
+    # All other nodes are assigned group -1
+    for node in range(matrix.shape[0]):
+        if node not in node_to_color_group:
+            node_to_color_group[node] = -1
+
+    # Step 3: Convert sparse matrix to COO format for coordinate access
+    X_coo = matrix.tocoo()
+
+    # Step 4: Prepare color map for 6 groups (5 top + "other")
+    colors = ['red', 'green', 'blue', 'orange', 'purple', 'gray']
+    group_coords = {i: ([], []) for i in range(-1, top_k)}  # group -> (rows, cols)
+
+    for row, col in zip(X_coo.row, X_coo.col):
+        group = node_to_color_group.get(row, -1)
+        # Only plot upper triangle (or all if undirected)
+        if row <= col:
+            group_coords[group][0].append(row)
+            group_coords[group][1].append(col)
+
+    # Step 5: Plot
+    plt.figure(figsize=(8, 8))
+    for group_id, (rows, cols) in group_coords.items():
+        plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Group {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
+
+    plt.xlabel("Users", fontsize=14)
+    plt.ylabel("Users", fontsize=14)
+    plt.legend(markerscale=6, fontsize=10, loc='upper right')
+    plt.gca().invert_yaxis()  # Optional: to match spy() orientation
+    plt.tight_layout()
     plt.show()

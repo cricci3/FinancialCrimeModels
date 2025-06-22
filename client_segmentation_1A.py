@@ -1,6 +1,6 @@
 from workflow.internal import load_dataset, normalization, extract_timeseries
 from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
-from workflow.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1
+from workflow.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
 import matplotlib.pyplot as plt
 import json
 from scipy import sparse
@@ -8,6 +8,7 @@ from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 import numpy as np
 import os
+import networkx as nx
 
 
 def ask_yes_no(prompt, default=None):
@@ -100,12 +101,10 @@ if __name__ == '__main__':
             # Load pre-saved knn_matrix
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
 
-            # Print knn matrix
-            # plt.figure(figsize=(7, 7))
-            # plt.spy(knn_matrix, markersize=5)
-            # plt.ylabel("Users", fontsize=18)
-            # plt.savefig(f'images/{dimension}/knn_matrix')
-            # plt.show()
+            if dimension == '1M':
+                # Remove self-loops
+                knn_matrix.setdiag(0)
+                knn_matrix.eliminate_zeros()
 
             print("Shape KNN:", knn_matrix.shape)
             print("Non-zeros KNN:", knn_matrix.nnz)
@@ -130,11 +129,28 @@ if __name__ == '__main__':
 
         Y_norm = normalization(Y, name)
 
+        # Y = Y.T.values
+
+        # # Safe standardization that handles zero std deviation
+        # row_mean = np.mean(Y, axis=1, keepdims=True)
+        # row_std = np.std(Y, axis=1, keepdims=True)
+
+        # # Handle zero standard deviation cases
+        # row_std[row_std == 0] = 1.0
+
+        # Y_norm = (Y - row_mean) / row_std
+
+        print("NaNs?", np.isnan(Y_norm).any())
+        print("Infs?", np.isinf(Y_norm).any())
+        print("Max:", np.max(Y_norm))
+        print("Min:", np.min(Y_norm))
+        print("Mean std per row (should be 1):", round(np.mean(np.std(Y_norm, axis=1)), 2))
+
         n_neigs = {
             '100' : 10,
             '1K' : 8,
             '10K' : 4,
-            '100K' : 2,
+            '100K' : 3,
             '1M' : 2 # then remove self loops
         }
 
@@ -172,11 +188,14 @@ if __name__ == '__main__':
         os.makedirs(f'images/{dimension}/', exist_ok=True)
 
         # Print knn matrix
-        # plt.figure(figsize=(7, 7))
-        # plt.spy(knn_matrix, markersize=5)
-        # plt.ylabel("Users", fontsize=18)
-        # plt.savefig(f'images/{dimension}/knn_matrix')
-        # plt.show()
+        plt.figure(figsize=(7, 7))
+        plt.spy(knn_matrix, markersize=5)
+        plt.ylabel("Users", fontsize=18)
+        plt.savefig(f'images/{dimension}/knn_matrix')
+        plt.show()
+
+        if ask_yes_no("Do you want to study the CC of KNN matrix?") == 'Y':
+            study_CC(knn_matrix)
 
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
@@ -205,20 +224,10 @@ if __name__ == '__main__':
         squic_method = 'squic-fit'
         results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
 
-    dict_method = {
-        '100' : 'scikit-learn',
-        '1K' : 'implemented',
-        '10K' : 'implemented',
-        '100K' : 'implemented',
-        '1M' : 'implemented'
-    }
-
     # Results
-    dict_cluster = clustering_2_communities(results_squic, squic_method, method=dict_method[dimension])
+    dict_cluster, node_indices = clustering_2_communities(results_squic, squic_method)
 
-    print(dict_cluster[squic_method].keys())
-
-    metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
+    metrics = ARI_fscore(dict_cluster, results_squic, account_prop, node_indices)
 
     for _, data in metrics.items():
         for rho, results in data.items():
