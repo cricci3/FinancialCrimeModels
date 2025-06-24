@@ -68,7 +68,7 @@ def load_dataset():
     return df, name, dimension, account_prop
 
 
-def extract_timeseries(df, name, dimension):
+def extract_timeseries(df, name, dimension=None):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(7,7))
@@ -162,9 +162,8 @@ def extract_timeseries(df, name, dimension):
 
 
 def normalization(df, name):
-    Y = df.T.values  # Convert to (users, days)
-
     if name == 'AMLSIM':
+        Y = df
         # Compute std dev per row
         row_std = np.std(Y, axis=1, keepdims=True)
         # Avoid division by zero
@@ -174,6 +173,8 @@ def normalization(df, name):
         return Y_new
     
     elif name == 'PAYSIM':
+        Y = df.T.values  # Convert to (users, days)
+
         stds = np.std(Y, axis=1)
         safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
         Y_new = np.diag(1 / safe_stds) @ Y
