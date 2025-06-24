@@ -7,26 +7,13 @@ if __name__ == '__main__':
     Y, name, dimension, account_prop, trans_matrix = load_dataset()
 
     # Extract time series
-    extract_timeseries(Y, name)
+    # extract_timeseries(Y, name)
 
     # Normalise time series
     Y_new = normalization(Y, name)
 
-    # Run SQUIC_fit to compute A (old W)
-    # A_matrices, _ = squic_fit_computation(Y_norm, name, dimension, adj_matrix, printMatrix=False)
-
     # Run SQUIC to compute Θ
     Theta_matrices, _ = squic_computation(Y_new, name, dimension)
-
-    # Use the extracted A for clustering
-    # dict_cluster = clustering(A_matrices)
-
-    # Report internal metrics on the clustering
-    # int_metrics = internal_metrics(dict_cluster, W_matrices)
-    # visualize_metrics(int_metrics)
-
-    # Visualise with cosmograph A
-    # visualize_graph_internal(W_matrices, dict_cluster, name, dimension)
 
     # extract Θ for LDA
     ext_scores = prepare_LDA(Theta_matrices, account_prop)
