@@ -1,11 +1,12 @@
 from workflow.internal import load_dataset, normalization, extract_timeseries
-from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
+from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
 from workflow.clustering_functions import clustering_optimal_number, internal_metrics
 import matplotlib.pyplot as plt
 import json
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
 import pandas as pd
+import numpy as np
 import os
 
 
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 
     if user_input == 'Y':
         dimension = ask_input("Which dimension (100/1K/10K/100K/1M)?").upper()
-        path = 'paysim_data_saved'
+        path = 'amlsim_data_saved'
 
         try:
             # Load pre-saved Y_norm
@@ -64,8 +65,34 @@ if __name__ == '__main__':
 
             Y_norm = pd.concat(chunks, ignore_index=True)
 
+            print(f"Head of Y_norm df:")
+            print(Y_norm.head())
+            print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
+
+            std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
+
+            print("Mean std per row (should be 1):", std_dev)
+            print("Max:", np.max(Y_norm))
+            print("Min:", np.min(Y_norm))
+
             # Load pre-saved knn_matrix
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
+
+            print("Shape KNN:", knn_matrix.shape)
+            print("nnz KNN:", knn_matrix.nnz)
+
+            # Average number of non-zeros per row
+            nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
+            print("nnz per row:", round(nnz_per_row, 2))
+
+            print("Is symmetric:", check_symmetric_sparse(knn_matrix))
+
+            # Print knn matrix
+            plt.figure(figsize=(7, 7))
+            plt.spy(knn_matrix, markersize=5)
+            plt.ylabel("Users", fontsize=18)
+            plt.title("KNN")
+            plt.show()
             
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
@@ -73,7 +100,7 @@ if __name__ == '__main__':
 
             account_prop = {int(k): v for k, v in account_prop.items()}
             
-            name = 'PAYSIM'
+            name = 'AMLSIM'
 
         except Exception as e:
             # If data are not present
@@ -81,27 +108,61 @@ if __name__ == '__main__':
             exit(1)
         
     else: # Normal run
-        Y, name, dimension, account_prop, _ = load_dataset()
+        Y, name, dimension, account_prop = load_dataset()
 
-        extract_timeseries(Y, name)
+        Y = Y.T.values  # Convert to (users, days)
+        # Compute delta: last day - first day
+        delta = Y[:, -1] - Y[:, 0]  # shape (n_users,)
+
+        # Get sort order (descending: most positive trend first)
+        sort_indices = np.argsort(-delta)
+
+        # Reorder the rows of Y based on trend
+        Y = Y[sort_indices]
+
+        # extract_timeseries(Y, name)
 
         Y_norm = normalization(Y, name)
+
+        print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
+
+        std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
+
+        print("Mean std per row (should be 1):", std_dev)
+        print("Max:", np.max(Y_norm))
+        print("Min:", np.min(Y_norm))
 
         n_neigs = {
             '100' : 10,
             '1K' : 8,
-            '10K' : 4,
-            '100K' : 2,
-            '1M' : 2
+            '10K' : 6,
+            '100K' : 4,
+            '1M' : 4
         }
 
         nbrs = NearestNeighbors(n_neighbors=n_neigs[dimension], metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
+
+        print("Shape KNN:", knn_matrix.shape)
+        print("nnz KNN:", knn_matrix.nnz)
+
+        # Average number of non-zeros per row
+        nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
+        print("nnz per row:", round(nnz_per_row, 2))
+
+        print("Is symmetric:", check_symmetric_sparse(knn_matrix))
+
+        # Print knn matrix
+        plt.figure(figsize=(7, 7))
+        plt.spy(knn_matrix, markersize=5)
+        plt.ylabel("Users", fontsize=18)
+        plt.title("KNN")
+        plt.show()
         
         # Ask user if want to save the data for next runs
         if ask_yes_no("Do you want to cache this data?") == 'Y':
-            path = 'paysim_data_saved'
+            path = 'amlsim_data_saved'
 
             # if path does not exists, create it
             os.makedirs(path, exist_ok=True)
@@ -122,13 +183,6 @@ if __name__ == '__main__':
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
 
         os.makedirs(f'images/{dimension}/', exist_ok=True)
-
-        # Print knn matrix
-        # plt.figure(figsize=(7, 7))
-        # plt.spy(knn_matrix, markersize=5)
-        # plt.ylabel("Users", fontsize=18)
-        # plt.savefig(f'images/{dimension}/knn_matrix')
-        # plt.show()
 
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
@@ -158,15 +212,11 @@ if __name__ == '__main__':
         results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
 
     # Results
-    print("Starting doing clustering")
     dict_cluster = clustering_optimal_number(dimension, results_squic, plot=False)
-    print("Done doing clustering")
 
     print(dict_cluster.keys())
 
-    print("Starting doing metrics")
     metrics = internal_metrics(dict_cluster, results_squic, leiden=True)
-    print("Done doing metrics")
 
     for rho, data in metrics.items():
         print(f"For rho {rho}:")
