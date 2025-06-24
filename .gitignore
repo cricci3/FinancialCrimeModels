@@ -9,6 +9,7 @@ lambda_values.json
 *.R
 *.m
 paysim_data_saved/
+amlsim_data_saved/
 Anomaly Detection/Elliot19_reproduce
 
 playground/squic_folder/*.npz
