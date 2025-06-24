@@ -254,7 +254,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, pa
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -283,7 +283,7 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -319,7 +319,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -340,8 +340,8 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
     W_matrices = {}
 
     for rho in lambdas:
-        # W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
-        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/100)
+        #W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/10)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=0)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
@@ -356,7 +356,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
