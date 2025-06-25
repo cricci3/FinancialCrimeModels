@@ -37,7 +37,7 @@ def compute_normalized_laplacian(adj):
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3):
+def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3, print=False):
     """
     Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
     Retries with adjusted parameters if convergence is not reached.
@@ -48,8 +48,8 @@ def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3):
             eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
             
             if len(eigenvalues) == k or (len(eigenvalues) > 2 and len(eigenvalues) < k):
-                print(" Eigenvalues:", eigenvalues)
-
+                if print:
+                    print(eigenvalues)
                 # Sort
                 idx = np.argsort(eigenvalues)
                 eigenvalues = eigenvalues[idx]
@@ -107,7 +107,6 @@ def find_optimal_clusters(graph, plot=True):
 
     # Find optimal k (highest relative eigengap)
     if len(relative_eigengaps) > 0:
-        print(f"len(relative_eigengaps) > 0 : True")
         optimal_k = k_values[np.argmax(relative_eigengaps)]
     else:
         optimal_k = 2  # default
