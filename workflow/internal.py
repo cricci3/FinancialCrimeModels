@@ -68,16 +68,27 @@ def load_dataset():
     return df, name, dimension, account_prop
 
 
-def extract_timeseries(df, name, dimension=None):
+def extract_timeseries(df, name, dimension=None, type_df=None):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(7,7))
 
-    colors = {'Clients': 'mediumseagreen', 
-              'Bank': 'crimson', 
-              'Merchants': 'darkturquoise'}
+    if type_df == 'norm':
+        # df = df.T
+        n_days, n_users = df.shape
+
+        # Create labels
+        user_labels = [f"User_{i}" for i in range(n_users)]
+        day_labels = list(range(n_days))
+
+        # Create the DataFrame
+        df = pd.DataFrame(df, index=day_labels, columns=user_labels)
 
     if name == 'PAYSIM':
+        colors = {'Clients': 'mediumseagreen', 
+              'Bank': 'crimson', 
+              'Merchants': 'darkturquoise'}
+        
         bank_dimension = ['100', '1K', '10K']
 
         # Plot each column (account balance) as a line
@@ -89,12 +100,14 @@ def extract_timeseries(df, name, dimension=None):
                 color = colors['Bank']
                 if dimension in bank_dimension:
                     plt.plot(df.index, df[user], color=color, alpha=0.6)
-            else:
+            elif user.startswith('M'):
                 color = colors['Merchants']
                 plt.plot(df.index, df[user], color=color, alpha=0.6)
+            else:
+                plt.plot(df.index, df[user], alpha=0.6)
             # plt.plot(df.index, df[user], color=color, alpha=0.6)
         
-        plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
+        # plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
     
         if dimension in bank_dimension:
             legend_elements = [
@@ -108,7 +121,8 @@ def extract_timeseries(df, name, dimension=None):
                 Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
             ]
 
-        plt.legend(handles=legend_elements, fontsize=16)
+        if type_df != 'norm':
+            plt.legend(handles=legend_elements, fontsize=16)
     
     else:
         # Plot each column (account balance) as a line
@@ -161,19 +175,49 @@ def extract_timeseries(df, name, dimension=None):
 #     return knn_graph
 
 
+def prepare_timeseries(df):
+    # Check if float
+    Y = df.astype(float)
+
+    # --- First-differencing to get stationary data
+    # Compute the difference across time (columns, axis=1)
+    Y_changes = Y.diff(axis=1)
+
+    # First column will be NaN
+    Y_changes = Y_changes.dropna(axis=1)
+
+    # Standardization of the differenced data
+    # Get the numpy array
+    Y_matrix = Y_changes.values
+
+    # Compute std dev per row of the differenced data
+    row_std = np.std(Y_matrix, axis=1, keepdims=True)
+
+    # No division by zero
+    row_std[row_std == 0] = 1.0
+
+    # Normalize each row (time series of an account's *changes*)
+    Y_prepared = Y_matrix / row_std
+
+    # Convert back to a DataFrame with original users and updated days
+    return pd.DataFrame(Y_prepared, index=Y_changes.index, columns=Y_changes.columns)
+
+
 def normalization(df, name):
     if name == 'AMLSIM':
+        # df is user on the rows and days on the columns
         Y = df
         # Compute std dev per row
         row_std = np.std(Y, axis=1, keepdims=True)
-        # Avoid division by zero
+        # Avoid division by zero -> when the balance of a user is constant
         row_std[row_std == 0] = 1.0
-        # Normalize each row
+        # Normalize each row (timeseries of a user)
         Y_new = Y / row_std
         return Y_new
     
     elif name == 'PAYSIM':
-        Y = df.T.values  # Convert to (users, days)
+        # Y = df.T.values  # Convert to (users, days)
+        Y = df.T
 
         stds = np.std(Y, axis=1)
         safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
