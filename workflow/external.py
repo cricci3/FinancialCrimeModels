@@ -99,7 +99,7 @@ def prepare_LDA(Theta_mtrx, account_prop):
     labels = np.array(labels)
     le = LabelEncoder()
     
-    labels_encoded = le.fit_transform(labels) + 1  # from C, M, B to classes 1, 2, 3
+    labels_encoded = le.fit_transform(labels) + 1  # from C, M to classes 1, 2
 
     for rho, Theta in Theta_mtrx.items():
         ext_metrics[rho] = {}
