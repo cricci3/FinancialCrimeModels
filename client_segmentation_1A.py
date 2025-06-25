@@ -1,5 +1,5 @@
 from workflow.internal import load_dataset, normalization, extract_timeseries
-from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
+from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
 from workflow.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
 import matplotlib.pyplot as plt
 import json
@@ -101,13 +101,14 @@ if __name__ == '__main__':
             # Load pre-saved knn_matrix
             knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
 
-            if dimension == '1M':
-                # Remove self-loops
-                knn_matrix.setdiag(0)
-                knn_matrix.eliminate_zeros()
-
             print("Shape KNN:", knn_matrix.shape)
-            print("Non-zeros KNN:", knn_matrix.nnz)
+            print("nnz KNN:", knn_matrix.nnz)
+
+            # Average number of non-zeros per row
+            nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
+            print("nnz per row:", round(nnz_per_row, 2))
+
+            print("Is symmetric:", check_symmetric_sparse(knn_matrix))
             
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
@@ -125,20 +126,14 @@ if __name__ == '__main__':
     else: # Normal run
         Y, name, dimension, account_prop = load_dataset()
 
-        # extract_timeseries(Y, name, dimension)
+        # visualize timeseries
+        extract_timeseries(Y, name, dimension)
 
+        Y = Y.T.values
         Y_norm = normalization(Y, name)
 
-        # Y = Y.T.values
-
-        # # Safe standardization that handles zero std deviation
-        # row_mean = np.mean(Y, axis=1, keepdims=True)
-        # row_std = np.std(Y, axis=1, keepdims=True)
-
-        # # Handle zero standard deviation cases
-        # row_std[row_std == 0] = 1.0
-
-        # Y_norm = (Y - row_mean) / row_std
+        # visualize timeseries with normalized data
+        extract_timeseries(Y_norm, name, dimension, type_df='norm')
 
         print("NaNs?", np.isnan(Y_norm).any())
         print("Infs?", np.isinf(Y_norm).any())
@@ -225,9 +220,9 @@ if __name__ == '__main__':
         results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
 
     # Results
-    dict_cluster, node_indices = clustering_2_communities(results_squic, squic_method)
+    dict_cluster = clustering_2_communities(results_squic, squic_method)
 
-    metrics = ARI_fscore(dict_cluster, results_squic, account_prop, node_indices)
+    metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 
     for _, data in metrics.items():
         for rho, results in data.items():
