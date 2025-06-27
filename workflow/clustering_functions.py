@@ -39,13 +39,20 @@ def labels_to_partition(labels):
     return list(clusters.values())
 
 
-def partition_to_labels(partition, n_nodes, index_map):
-    """Convert list-of-sets partition to flat label list."""
-    labels = np.zeros(n_nodes, dtype=int)
+# def partition_to_labels(partition, n_nodes, index_map):
+#     """Convert list-of-sets partition to flat label list."""
+#     labels = np.zeros(n_nodes, dtype=int)
+#     for cluster_id, cluster_nodes in enumerate(partition):
+#         for node in cluster_nodes:
+#             if node in index_map:
+#                 labels[index_map[node]] = cluster_id
+#     return labels
+
+def partition_to_labels(partition, n):
+    labels = np.zeros(n, dtype=int)
     for cluster_id, cluster_nodes in enumerate(partition):
         for node in cluster_nodes:
-            if node in index_map:
-                labels[index_map[node]] = cluster_id
+            labels[node] = cluster_id
     return labels
 
 
@@ -160,8 +167,14 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
+            connected = nx.is_connected(G)
+            print(f"Is G connected for l={rho}? {connected}")
+            if not connected:
+                connected_components = nx.connected_components(G)
+                component_sizes = [len(c) for c in connected_components]
+                print(f"# CC : {len(component_sizes)}")
+
             # Louvain
-            print(f"Starting Louvain e Leiden")
             start = time.time()
             partition_louvain = community.louvain_communities(G)
             end_louv = time.time() - start
@@ -173,65 +186,56 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
             partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
             end_leiden = time.time() - start
             dict_cluster['leiden'][rho] = partition_leiden
-            print(f"Done Louvain e Leiden")
 
-
-            if dimension == '100': # do grid search (fast and each rho have different params)
+            if dbscan_params_dict.get(rho):
+                dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
+                                min_samples=dbscan_params_dict[dimension]['min_samples'],
+                                metric='cosine')
+            else:
                 # DBSCAN with multiple params
-                best_Q = -1
-                best_params = None
+                # best_Q = -1
+                # best_params = None
 
-                eps_range = np.linspace(0.1, 2.0, 20)
-                min_samples_range = range(3, 10)
+                # eps_range = np.linspace(0.1, 2.0, 20)
+                # min_samples_range = range(3, 10)
 
-                print(f"Trying different params for DBSCAN for lambda = {rho}")
-                start = time.time()
-                for eps in tqdm(eps_range):
-                    for min_samples in min_samples_range:
-                        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
-                        labels = dbscan.fit_predict(X)
+                # print(f"Trying different params for DBSCAN for lambda = {rho}")
+                # start = time.time()
+                # for eps in tqdm(eps_range):
+                #     for min_samples in min_samples_range:
+                #         dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                #         labels = dbscan.fit_predict(X)
                         
-                        # Ignore if all points are noise (-1) or single cluster
-                        if len(set(labels)) <= 1 or (set(labels) == {-1}):
-                            continue
+                #         # Ignore if all points are noise (-1) or single cluster
+                #         if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                #             continue
 
-                        partition_dbscan = labels_to_partition(labels)
+                #         partition_dbscan = labels_to_partition(labels)
 
-                        # compute Q to evaluate
-                        db_Q = community.modularity(G, partition_dbscan)
-                        if db_Q > best_Q:
-                            best_Q = db_Q
-                            best_params = (eps, min_samples)
+                #         # compute Q to evaluate
+                #         db_Q = community.modularity(G, partition_dbscan)
+                #         if db_Q > best_Q:
+                #             best_Q = db_Q
+                #             best_params = (eps, min_samples)
 
-                if best_params is not None:
-                    print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
-                    dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
-                else:
-                    print("No suitable DBSCAN parameters found! DBSCAN with default params")
-                    dbscan = DBSCAN()
-            else: # bigger dataset -> slower grid search and also always same params between rhos
-                print("Skip DBSCAN")
-                pass
-                # dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
-                #                 min_samples=dbscan_params_dict[dimension]['min_samples'],
-                #                 metric='cosine')
+                # if best_params is not None:
+                #     print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
+                #     dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
+                # else:
+                #     print("No suitable DBSCAN parameters found! DBSCAN with default params")
+                dbscan = DBSCAN()
                 
-            # labels_dbscan = dbscan.fit_predict(X)
+            labels_dbscan = dbscan.fit_predict(X)
             end_db = time.time() - start
 
             # Convert labels to list of sets
-            # partition_dbscan = labels_to_partition(labels_dbscan)
-            # dict_cluster['dbscan'][rho] = partition_dbscan
+            partition_dbscan = labels_to_partition(labels_dbscan)
+            dict_cluster['dbscan'][rho] = partition_dbscan
 
             # Spectral Clustering
             start = time.time()
             optimal_k, eigenvectors = find_optimal_clusters(G, plot)
-            if nx.is_connected(G):
-                # Use scikit-learn method
-                clustering = SpectralClustering(n_clusters=optimal_k, affinity='precomputed', assign_labels='cluster_qr')
-                labels_spectral = clustering.fit_predict(X)
-            else:
-                labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
+            labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
             end_spec = time.time() - start
 
             # Convert labels to list of sets
@@ -336,58 +340,59 @@ def clustering_2_communities(results_squic, squic_method):
             #     if len(component) >= min_size:
             #         nodes_to_keep.update(component) # insert into nodes_to_keep, nodes in component
             
-            # Sort components by size (descending)
-            sorted_components = sorted(connected_components, key=len, reverse=True)
+            # # Sort components by size (descending)
+            # sorted_components = sorted(connected_components, key=len, reverse=True)
 
-            # Keep only the top 2 largest
-            top_k = 2
-            nodes_to_keep = set().union(*sorted_components[:top_k])
+            # # Keep only the top 2 largest
+            # top_k = 2
+            # nodes_to_keep = set().union(*sorted_components[:top_k])
 
-            # Create new graph with only the relevant nodes
-            G_filtered = G.subgraph(nodes_to_keep).copy()
+            # # Create new graph with only the relevant nodes
+            # G_filtered = G.subgraph(nodes_to_keep).copy()
 
-            connected_components = list(nx.connected_components(G_filtered))
-            print(f"N CC after = {len(connected_components)}")
+            # connected_components = list(nx.connected_components(G_filtered))
+            # print(f"N CC after = {len(connected_components)}")
 
-            A_filtered = nx.to_scipy_sparse_array(G_filtered)
+            # A_filtered = nx.to_scipy_sparse_array(G_filtered)
 
-            plt.figure(figsize=(7, 7))
-            plt.spy(A_filtered, markersize=5)
-            plt.ylabel("Users", fontsize=18)
-            plt.tick_params(axis='x', labelsize=18)
-            plt.tick_params(axis='y', labelsize=18)  
-            plt.show()
+            # plt.figure(figsize=(7, 7))
+            # plt.spy(A_filtered, markersize=5)
+            # plt.ylabel("Users", fontsize=18)
+            # plt.tick_params(axis='x', labelsize=18)
+            # plt.tick_params(axis='y', labelsize=18)  
+            # plt.show()
 
             # Keep track of node indices
-            filtered_node_indices = list(G_filtered.nodes)
+            # filtered_node_indices = list(G_filtered.nodes)
 
             print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
             print(f"Computing spectral clustering for rho {rho}...")
             start = time.time()
 
-            if nx.is_connected(G):
-                print(f"For rho {rho} G is connected -> using scikit-learn")
-                clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
-                labels_spectral = clustering.fit_predict(X)
-            else:
-                print(f"For rho {rho} G not is connected -> using implemented algorithm")
-                L_norm = compute_normalized_laplacian(A_filtered) # fast
-                _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
-                if eigenvectors is not None:
-                    labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
-                    # Convert labels to list of sets
-                    partition_spectral = labels_to_partition(labels_spectral)
+            # if nx.is_connected(G):
+            #     print(f"For rho {rho} G is connected -> using scikit-learn")
+            #     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
+            #     labels_spectral = clustering.fit_predict(X)
+            # else:
+            # print(f"For rho {rho} G not is connected -> using implemented algorithm")
+            L_norm = compute_normalized_laplacian(X) # fast
+            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
+            if eigenvectors is not None:
+                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
+                # Convert labels to list of sets
+                partition_spectral = labels_to_partition(labels_spectral)
 
-                    dict_cluster[technique][rho] = partition_spectral
-                else:
-                    print(f"Unable to compute Spectral clustering for rho {rho}")
-                    dict_cluster[technique][rho] = None
+                dict_cluster[technique][rho] = partition_spectral
+            else:
+                print(f"Unable to compute Spectral clustering for rho {rho}")
+                dict_cluster[technique][rho] = None
             
             end = time.time() - start
 
             print(f"For rho {rho} takes {round(end, 2)} seconds")
-    return dict_cluster, filtered_node_indices
+    # return dict_cluster, filtered_node_indices
+    return dict_cluster
 
 
 def internal_metrics(dict_cluster, W_matrices, leiden=False):
@@ -412,8 +417,8 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
         }
 
     for method, clustering_results in dict_cluster.items():
-        for _, matrix in W_matrices.items():
-            for l, X in matrix.items(): 
+        for _, rho_matrix in W_matrices.items():
+            for l, X in rho_matrix.items(): 
                 partition = clustering_results[l]
 
                 # Ensure all off-diagonal entries are positive
@@ -425,19 +430,18 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
                 # G = nx.from_numpy_array(X)
                 G = nx.from_scipy_sparse_array(X)
 
-                print("List node_to_community")
+                # turn: partition = [{0, 2, 5}, {1, 3, 4}, ... ]
+                # in: node_to_community = {0: 0, 2: 0, 5: 0,1: 1, 3: 1, 4: 1, ... }
                 node_to_community = {}
                 for idx, comm in enumerate(partition):
                     for node in comm:
                         node_to_community[node] = idx
-                print("done List node_to_community")
                 
                 n_cut = 0
                 r_cut = 0
 
                 clusters = set(node_to_community.values()) # set of clusters
 
-                print("Starting calculating rcut and ncut")
                 for cluster_id in clusters:
                     # Nodes in this cluster
                     cluster_nodes = [n for n, c in node_to_community.items() if c == cluster_id]
@@ -457,10 +461,76 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
                     # Normalized cut and ratio cut
                     r_cut += cut / size if size > 0 else 0
                     n_cut += cut / volume if volume > 0 else 0
-                print("Done calculating rcut and ncut")
 
                 int_metrics[l][method]["ncut"] = float(round(n_cut, 2))
                 int_metrics[l][method]["rcut"] = float(round(r_cut, 2))
+
+                modularity = community.modularity(G, dict_cluster[method][l])
+                int_metrics[l][method]['modularity'] = float(round(modularity, 2))
+                
+                # Connected Components
+                int_metrics[l][method]['CC'] = nx.number_connected_components(G)
+
+                # N cluster
+                int_metrics[l][method]['nCluster'] = len(partition)
+
+    return int_metrics
+
+
+def modularity_density(dict_cluster, W_matrices, leiden=False):
+    matrix_dict = next(iter(W_matrices.values()))
+
+    if not leiden:
+        int_metrics = {
+            rho: {
+                'louvain': {},
+                'dbscan': {},
+                'spectral': {}
+            } for rho in matrix_dict.keys()
+        }
+    else:
+        int_metrics = {
+            rho: {
+                'louvain': {},
+                'leiden': {},
+                'dbscan': {},
+                'spectral': {}
+            } for rho in matrix_dict.keys()
+        }
+
+    for method, clustering_results in dict_cluster.items():
+        for _, rho_matrix in W_matrices.items():
+            for l, X in rho_matrix.items(): 
+                partition = clustering_results[l]
+
+                # Ensure all off-diagonal entries are positive
+                X = np.abs(X) 
+
+                # Ensure diagonal entries are zero
+                X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+
+                # G = nx.from_numpy_array(X)
+                G = nx.from_scipy_sparse_array(X)
+                
+                m_total = G.number_of_edges()
+                D_sum = 0
+
+                for comm in partition:
+                    n_alpha = len(comm)
+                    if n_alpha < 3:
+                        continue  # skip communities too small for partition density
+
+                    subgraph = G.subgraph(comm)
+                    m_alpha = subgraph.number_of_edges()
+
+                    numerator = m_alpha - (n_alpha - 1)
+                    denominator = (n_alpha - 2) * (n_alpha - 1)
+
+                    if denominator > 0:
+                        D_sum += m_alpha * (numerator / denominator)
+
+                partition_density = (2 / m_total) * D_sum if m_total > 0 else 0
+                int_metrics[l][method]["p_density"] = float(round(partition_density, 2))
 
                 modularity = community.modularity(G, dict_cluster[method][l])
                 int_metrics[l][method]['modularity'] = float(round(modularity, 2))
@@ -522,7 +592,8 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
     return metrics
 
 
-def ARI_fscore(dict_cluster, results_squic, account_prop, node_indices):
+# def ARI_fscore(dict_cluster, results_squic, account_prop, node_indices):
+def ARI_fscore(dict_cluster, results_squic, account_prop):
     metrics = {
         method: {
             rho: {
@@ -531,14 +602,14 @@ def ARI_fscore(dict_cluster, results_squic, account_prop, node_indices):
         } for method in dict_cluster.keys()
     }
 
-    # n = len(account_prop)
-    # class_labels = np.array([account_prop[i]["class"] for i in range(n)])
-    class_labels = np.array([account_prop[i]["class"] for i in node_indices])
+    n = len(account_prop)
+    class_labels = np.array([account_prop[i]["class"] for i in range(n)])
+    # class_labels = np.array([account_prop[i]["class"] for i in node_indices])
 
     # Convert class labels to 0/1
     le = LabelEncoder()
     true_labels = le.fit_transform(class_labels)
-    n = len(node_indices)
+    # n = len(node_indices)
 
     for method in dict_cluster:
         for rho, partition in dict_cluster[method].items():
@@ -556,10 +627,11 @@ def ARI_fscore(dict_cluster, results_squic, account_prop, node_indices):
                 G = nx.from_scipy_sparse_array(X)
 
                 # Create a mapping from original index -> filtered index
-                index_map = {orig_idx: i for i, orig_idx in enumerate(node_indices)}
+                # index_map = {orig_idx: i for i, orig_idx in enumerate(node_indices)}
 
                 # Convert partition (list of sets) to labels
-                cluster_labels = partition_to_labels(partition, n, index_map)
+                # cluster_labels = partition_to_labels(partition, n, index_map)
+                cluster_labels = partition_to_labels(partition, n)
 
                 # print(f"\nfor rho {rho}: true labels and then cluster labels")
                 # print(true_labels)
