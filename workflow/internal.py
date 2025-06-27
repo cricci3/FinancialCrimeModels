@@ -74,7 +74,8 @@ def extract_timeseries(df, name, dimension=None, type_df=None):
     plt.figure(figsize=(7,7))
 
     if type_df == 'norm':
-        # df = df.T
+        if name == 'AMLSIM':
+            df = df.T
         n_days, n_users = df.shape
 
         # Create labels
