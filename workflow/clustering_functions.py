@@ -152,8 +152,16 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
     }
 
     dbscan_params_dict = {
-        '1K' : {'epsilon' : 0.7, 'min_samples' : 7},
-        '10K' : {'epsilon' : 0.9999999999999999, 'min_samples' : 9}
+        '100' : {'epsilon' : 0.7,
+                'min_samples' : 8},
+        '1K' : {'epsilon' : 0.7,
+                'min_samples' : 3},
+        '10K' : {'epsilon' : 0.7,
+                'min_samples' : 3},
+        '100K' : {'epsilon' : 0.7,
+                'min_samples' : 3},
+        '1M' : {'epsilon' : 0.7,
+                'min_samples' : 3}
     }
 
     for technique, matrices in results_squic.items():
@@ -187,42 +195,42 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
             end_leiden = time.time() - start
             dict_cluster['leiden'][rho] = partition_leiden
 
-            if dbscan_params_dict.get(rho):
+            if dbscan_params_dict.get(dimension):
                 dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
                                 min_samples=dbscan_params_dict[dimension]['min_samples'],
                                 metric='cosine')
             else:
                 # DBSCAN with multiple params
-                # best_Q = -1
-                # best_params = None
+                best_Q = -1
+                best_params = None
 
-                # eps_range = np.linspace(0.1, 2.0, 20)
-                # min_samples_range = range(3, 10)
+                eps_range = np.linspace(0.1, 2.0, 20)
+                min_samples_range = range(3, 10)
 
-                # print(f"Trying different params for DBSCAN for lambda = {rho}")
-                # start = time.time()
-                # for eps in tqdm(eps_range):
-                #     for min_samples in min_samples_range:
-                #         dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
-                #         labels = dbscan.fit_predict(X)
+                print(f"Trying different params for DBSCAN for lambda = {rho}")
+                start = time.time()
+                for eps in tqdm(eps_range):
+                    for min_samples in min_samples_range:
+                        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                        labels = dbscan.fit_predict(X)
                         
-                #         # Ignore if all points are noise (-1) or single cluster
-                #         if len(set(labels)) <= 1 or (set(labels) == {-1}):
-                #             continue
+                        # Ignore if all points are noise (-1) or single cluster
+                        if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                            continue
 
-                #         partition_dbscan = labels_to_partition(labels)
+                        partition_dbscan = labels_to_partition(labels)
 
-                #         # compute Q to evaluate
-                #         db_Q = community.modularity(G, partition_dbscan)
-                #         if db_Q > best_Q:
-                #             best_Q = db_Q
-                #             best_params = (eps, min_samples)
+                        # compute Q to evaluate
+                        db_Q = community.modularity(G, partition_dbscan)
+                        if db_Q > best_Q:
+                            best_Q = db_Q
+                            best_params = (eps, min_samples)
 
-                # if best_params is not None:
-                #     print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
-                #     dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
-                # else:
-                #     print("No suitable DBSCAN parameters found! DBSCAN with default params")
+                if best_params is not None:
+                    print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
+                    dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
+                else:
+                    print("No suitable DBSCAN parameters found! DBSCAN with default params")
                 dbscan = DBSCAN()
                 
             labels_dbscan = dbscan.fit_predict(X)
@@ -279,107 +287,15 @@ def clustering_2_communities(results_squic, squic_method):
             # Create a graph from matrix X
             G = nx.from_scipy_sparse_array(X)
 
-            # connected_components = list(nx.connected_components(G))
-            # component_sizes = [len(c) for c in connected_components]
-            # component_sizes.sort(reverse=True)
-
-            # sorted_components = sorted(connected_components, key=len, reverse=True)
-            # top_k = 5
-            # top_components = sorted_components[:top_k]
-
-            # print(f"\nFor rho {rho}: ")
-            # print(f"Total components: {len(component_sizes)}")
-            # print(f"Top 5 component sizes: {component_sizes[:5]}")
-
-            # # Step 2: Map node index to component ID
-            # node_to_color_group = {}  # node_id -> 0,1,2,3,4 for top 5, -1 for rest
-
-            # for i, comp in enumerate(top_components):
-            #     for node in comp:
-            #         node_to_color_group[node] = i
-
-            # # All other nodes are assigned group -1
-            # for node in range(X.shape[0]):
-            #     if node not in node_to_color_group:
-            #         node_to_color_group[node] = -1
-
-            # # Step 3: Convert sparse matrix to COO format for coordinate access
-            # X_coo = X.tocoo()
-
-            # # Step 4: Prepare color map for 6 groups (5 top + "other")
-            # colors = ['red', 'green', 'blue', 'orange', 'purple', 'gray']
-            # group_coords = {i: ([], []) for i in range(-1, top_k)}  # group -> (rows, cols)
-
-            # for row, col in zip(X_coo.row, X_coo.col):
-            #     group = node_to_color_group.get(row, -1)
-            #     # Only plot upper triangle (or all if undirected)
-            #     if row <= col:
-            #         group_coords[group][0].append(row)
-            #         group_coords[group][1].append(col)
-
-            # # Step 5: Plot
-            # plt.figure(figsize=(8, 8))
-            # for group_id, (rows, cols) in group_coords.items():
-            #     plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Group {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
-
-            # plt.xlabel("Users", fontsize=14)
-            # plt.ylabel("Users", fontsize=14)
-            # plt.title("Adjacency Matrix with Top 5 Components Colored", fontsize=16)
-            # plt.legend(markerscale=6, fontsize=10, loc='upper right')
-            # plt.gca().invert_yaxis()  # Optional: to match spy() orientation
-            # plt.tight_layout()
-            # plt.show()
-
-            # Filter out small components
-            # total_nodes = G.number_of_nodes()
-            # min_size = total_nodes // 100
-
-            # Nodes to keep (in large enough components)
-            # nodes_to_keep = set()
-            # for component in connected_components:
-            #     if len(component) >= min_size:
-            #         nodes_to_keep.update(component) # insert into nodes_to_keep, nodes in component
-            
-            # # Sort components by size (descending)
-            # sorted_components = sorted(connected_components, key=len, reverse=True)
-
-            # # Keep only the top 2 largest
-            # top_k = 2
-            # nodes_to_keep = set().union(*sorted_components[:top_k])
-
-            # # Create new graph with only the relevant nodes
-            # G_filtered = G.subgraph(nodes_to_keep).copy()
-
-            # connected_components = list(nx.connected_components(G_filtered))
-            # print(f"N CC after = {len(connected_components)}")
-
-            # A_filtered = nx.to_scipy_sparse_array(G_filtered)
-
-            # plt.figure(figsize=(7, 7))
-            # plt.spy(A_filtered, markersize=5)
-            # plt.ylabel("Users", fontsize=18)
-            # plt.tick_params(axis='x', labelsize=18)
-            # plt.tick_params(axis='y', labelsize=18)  
-            # plt.show()
-
-            # Keep track of node indices
-            # filtered_node_indices = list(G_filtered.nodes)
-
             print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
             print(f"Computing spectral clustering for rho {rho}...")
             start = time.time()
 
-            # if nx.is_connected(G):
-            #     print(f"For rho {rho} G is connected -> using scikit-learn")
-            #     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', assign_labels='cluster_qr')
-            #     labels_spectral = clustering.fit_predict(X)
-            # else:
-            # print(f"For rho {rho} G not is connected -> using implemented algorithm")
-            L_norm = compute_normalized_laplacian(X) # fast
-            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2) # fast
+            L_norm = compute_normalized_laplacian(X)
+            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2)
             if eigenvectors is not None:
-                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans') # fast
+                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
                 # Convert labels to list of sets
                 partition_spectral = labels_to_partition(labels_spectral)
 
@@ -764,7 +680,7 @@ def plot_PDens_Q(metrics_dict, dimension, save=False):
     colors = {
         'louvain':'green',
         'leiden':'orange',
-        'spectral':'blue',
+        'spectral':'cornflowerblue',
     }
 
     fig, ax1 = plt.subplots(figsize=(7, 7))
