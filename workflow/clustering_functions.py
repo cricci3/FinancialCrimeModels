@@ -143,7 +143,7 @@ def clustering_same_n(W_matrices, name, account_prop):
     
     return dict_cluster
 
-def clustering_optimal_number(dimension, results_squic, plot=False):
+def clustering_optimal_number(dimension, results_squic, plot=False, times=False):
     dict_cluster = {
         "louvain" : {},
         "spectral" : {},
@@ -243,25 +243,29 @@ def clustering_optimal_number(dimension, results_squic, plot=False):
             # Spectral Clustering
             start = time.time()
             optimal_k, eigenvectors = find_optimal_clusters(G, plot)
-            labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
+            if eigenvectors is not None:
+                labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
+                # Convert labels to list of sets
+                partition_spectral = labels_to_partition(labels_spectral)
+
+                dict_cluster['spectral'][rho] = partition_spectral
+            else:
+                dict_cluster['spectral'][rho] = None
+
             end_spec = time.time() - start
 
-            # Convert labels to list of sets
-            partition_spectral = labels_to_partition(labels_spectral)
+            if times == True:
+                print(f"For rho {rho}: ")
 
-            dict_cluster['spectral'][rho] = partition_spectral
+                # print(f"Number of louvain cluster is {len(partition_louvain)}")
+                # print(f"Number of leiden cluster is {len(partition_leiden)}")
+                # print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
+                # print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
 
-            # print(f"For rho {rho}: ")
-
-            # print(f"Number of louvain cluster is {len(partition_louvain)}")
-            # print(f"Number of leiden cluster is {len(partition_leiden)}")
-            # print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
-            # print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
-
-            # print(f"Time for Louvain -> {round(end_louv, 2)} s")
-            # print(f"Time for Leiden -> {round(end_leiden, 2)} s")
-            # print(f"Time for DBSCAN -> {round(end_db, 2)} s")
-            # print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
+                print(f"Time for Louvain -> {round(end_louv, 2)} s")
+                print(f"Time for Leiden -> {round(end_leiden, 2)} s")
+                print(f"Time for DBSCAN -> {round(end_db, 2)} s")
+                print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
     
     return dict_cluster
 
@@ -419,43 +423,56 @@ def modularity_density(dict_cluster, W_matrices, leiden=False):
             for l, X in rho_matrix.items(): 
                 partition = clustering_results[l]
 
-                # Ensure all off-diagonal entries are positive
-                X = np.abs(X) 
+                # Skip if partition is None
+                if partition is None:
+                    print(f"[Warning] No partition for method={method}, lambda={l}. Skipping.")
 
-                # Ensure diagonal entries are zero
-                X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+                    int_metrics[l][method]["p_density"] = 0
+                    int_metrics[l][method]['modularity'] = 0
+                    int_metrics[l][method]['CC'] = 0
+                    int_metrics[l][method]['nCluster'] = 0
+                else:
 
-                # G = nx.from_numpy_array(X)
-                G = nx.from_scipy_sparse_array(X)
-                
-                m_total = G.number_of_edges()
-                D_sum = 0
+                    # Ensure all off-diagonal entries are positive
+                    X = np.abs(X) 
 
-                for comm in partition:
-                    n_alpha = len(comm)
-                    if n_alpha < 3:
-                        continue  # skip communities too small for partition density
+                    # Ensure diagonal entries are zero
+                    X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-                    subgraph = G.subgraph(comm)
-                    m_alpha = subgraph.number_of_edges()
+                    # G = nx.from_numpy_array(X)
+                    G = nx.from_scipy_sparse_array(X)
+                    
+                    m_total = G.number_of_edges()
+                    D_sum = 0
+                    n_skip = 0
 
-                    numerator = m_alpha - (n_alpha - 1)
-                    denominator = (n_alpha - 2) * (n_alpha - 1)
+                    for comm in partition:
+                        n_alpha = len(comm)
+                        if n_alpha < 3:
+                            n_skip += 1
+                            continue  # skip communities too small for partition density
 
-                    if denominator > 0:
-                        D_sum += m_alpha * (numerator / denominator)
+                        subgraph = G.subgraph(comm)
+                        m_alpha = subgraph.number_of_edges()
 
-                partition_density = (2 / m_total) * D_sum if m_total > 0 else 0
-                int_metrics[l][method]["p_density"] = float(round(partition_density, 2))
+                        numerator = m_alpha - (n_alpha - 1)
+                        denominator = (n_alpha - 2) * (n_alpha - 1)
 
-                modularity = community.modularity(G, dict_cluster[method][l])
-                int_metrics[l][method]['modularity'] = float(round(modularity, 2))
-                
-                # Connected Components
-                int_metrics[l][method]['CC'] = nx.number_connected_components(G)
+                        if denominator > 0:
+                            D_sum += m_alpha * (numerator / denominator)
 
-                # N cluster
-                int_metrics[l][method]['nCluster'] = len(partition)
+                    partition_density = (2 / m_total) * D_sum if m_total > 0 else 0
+                    print(f"for {method} - rho {l}, n skip = {n_skip} out of {len(partition)} community")
+                    int_metrics[l][method]["p_density"] = float(round(partition_density, 2))
+
+                    modularity = community.modularity(G, dict_cluster[method][l])
+                    int_metrics[l][method]['modularity'] = float(round(modularity, 2))
+                    
+                    # Connected Components
+                    int_metrics[l][method]['CC'] = nx.number_connected_components(G)
+
+                    # N cluster
+                    int_metrics[l][method]['nCluster'] = len(partition)
 
     return int_metrics
 
@@ -681,6 +698,7 @@ def plot_PDens_Q(metrics_dict, dimension, save=False):
         'louvain':'green',
         'leiden':'orange',
         'spectral':'cornflowerblue',
+        'dbscan':'mediumorchid'
     }
 
     fig, ax1 = plt.subplots(figsize=(7, 7))
@@ -691,29 +709,31 @@ def plot_PDens_Q(metrics_dict, dimension, save=False):
     clustering_methods = metrics_dict[first_rho].keys()
 
     for method in clustering_methods:
-        if method != 'dbscan':
-            PDensity_values = []
-            Q_values = []
-            valid_rhos = []
+        PDensity_values = []
+        Q_values = []
+        valid_rhos = []
 
-            for rho in sorted(metrics_dict.keys()):
-                method_metrics = metrics_dict[rho].get(method, {})
-                pdens = method_metrics.get('p_density', None)
-                q = method_metrics.get('modularity', None)
+        for rho in sorted(metrics_dict.keys()):
+            method_metrics = metrics_dict[rho].get(method, {})
+            pdens = method_metrics.get('p_density', None)
+            q = method_metrics.get('modularity', None)
 
-                if pdens is not None and q is not None:
-                    PDensity_values.append(pdens)
-                    Q_values.append(q)
-                    valid_rhos.append(rho)
+            if pdens is not None and q is not None:
+                PDensity_values.append(pdens)
+                Q_values.append(q)
+                valid_rhos.append(rho)
 
-            if valid_rhos:
-                color = colors.get(method, 'black')
-                ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
-                ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
+        if valid_rhos:
+            color = colors.get(method, 'black')
+            ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
+            ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
 
     ax1.set_xlabel("rho")
     ax1.set_ylabel("Modularity Q", color='black')
     ax2.set_ylabel("Partition Density", color='black')
+
+    ax1.set_xticks(valid_rhos)
+    ax1.set_xticklabels([str(r) for r in valid_rhos], rotation=45)
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
