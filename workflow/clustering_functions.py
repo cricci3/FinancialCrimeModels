@@ -759,6 +759,61 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
     plt.show()
 
 
+def plot_PDens_Q(metrics_dict, dimension, save=False):
+
+    colors = {
+        'louvain':'green',
+        'leiden':'orange',
+        'spectral':'blue',
+    }
+
+    fig, ax1 = plt.subplots(figsize=(7, 7))
+    ax2 = ax1.twinx()
+
+    # Get the list of methods from the first rho entry
+    first_rho = next(iter(metrics_dict))
+    clustering_methods = metrics_dict[first_rho].keys()
+
+    for method in clustering_methods:
+        if method != 'dbscan':
+            PDensity_values = []
+            Q_values = []
+            valid_rhos = []
+
+            for rho in sorted(metrics_dict.keys()):
+                method_metrics = metrics_dict[rho].get(method, {})
+                pdens = method_metrics.get('p_density', None)
+                q = method_metrics.get('modularity', None)
+
+                if pdens is not None and q is not None:
+                    PDensity_values.append(pdens)
+                    Q_values.append(q)
+                    valid_rhos.append(rho)
+
+            if valid_rhos:
+                color = colors.get(method, 'black')
+                ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
+                ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
+
+    ax1.set_xlabel("rho")
+    ax1.set_ylabel("Modularity Q", color='black')
+    ax2.set_ylabel("Partition Density", color='black')
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+
+    fig.tight_layout()
+    plt.grid(True)
+
+    if save:
+        os.makedirs(f'images/{dimension}', exist_ok=True)
+        plt.savefig(f"images/{dimension}/PDens_Q_all_methods.png")
+        print(f"Plot saved in images/{dimension}/PDens_Q_all_methods.png")
+
+    plt.show()
+
+
 def study_CC(matrix):
     G = nx.from_scipy_sparse_array(matrix)
     connected_components = list(nx.connected_components(G))
