@@ -1,6 +1,6 @@
 from workflow.internal import load_dataset, normalization, extract_timeseries
 from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
-from workflow.clustering_functions import clustering_optimal_number, internal_metrics
+from workflow.clustering_functions import clustering_optimal_number, modularity_density, plot_PDens_Q
 import matplotlib.pyplot as plt
 import json
 from scipy import sparse
@@ -8,6 +8,19 @@ from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 import numpy as np
 import os
+
+
+def show_df(Y):
+    n_users, n_days = Y.shape
+
+    # Create labels
+    day_labels = [f"Day {i}" for i in range(n_days)]
+    user_labels = list(range(n_users))
+
+    # Create the DataFrame
+    df = pd.DataFrame(Y, index=user_labels, columns=day_labels)
+
+    print(df)
 
 
 def ask_yes_no(prompt, default=None):
@@ -88,11 +101,11 @@ if __name__ == '__main__':
             print("Is symmetric:", check_symmetric_sparse(knn_matrix))
 
             # Print knn matrix
-            plt.figure(figsize=(7, 7))
-            plt.spy(knn_matrix, markersize=5)
-            plt.ylabel("Users", fontsize=18)
-            plt.title("KNN")
-            plt.show()
+            # plt.figure(figsize=(7, 7))
+            # plt.spy(knn_matrix, markersize=5)
+            # plt.ylabel("Users", fontsize=18)
+            # plt.title("KNN")
+            # plt.show()
             
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
@@ -110,19 +123,52 @@ if __name__ == '__main__':
     else: # Normal run
         Y, name, dimension, account_prop = load_dataset()
 
+        extract_timeseries(Y, name)
+
         Y = Y.T.values  # Convert to (users, days)
-        # Compute delta: last day - first day
-        delta = Y[:, -1] - Y[:, 0]  # shape (n_users,)
 
-        # Get sort order (descending: most positive trend first)
-        sort_indices = np.argsort(-delta)
+        show_df(Y)
 
-        # Reorder the rows of Y based on trend
-        Y = Y[sort_indices]
+        # if ask_yes_no("Do you want to reorder data?") == 'Y':
+        #     # ---- delta
+        #     # Compute delta: last day - first day
+        #     delta = Y[:, -1] - Y[:, 0]  # shape (n_users,)
 
-        # extract_timeseries(Y, name)
+        #     # Get sort order (descending: most positive trend first)
+        #     sort_indices = np.argsort(-delta)
+
+        #     # Reorder the rows of Y based on trend
+        #     Y = Y[sort_indices]
+
+        #     show_df(Y)
 
         Y_norm = normalization(Y, name)
+        extract_timeseries(Y_norm, name, type_df='norm')
+
+        show_df(Y_norm)
+
+        # n_users, n_days = Y.shape
+
+        # # Create labels (optional: you can customize these)
+        # user_labels = [f"User_{i}" for i in range(n_users)]
+        # day_labels = [f"{j}" for j in range(n_days)]
+
+        # # Create the DataFrame
+        # df = pd.DataFrame(Y, index=user_labels, columns=day_labels)
+
+        # Y_norm2 = prepare_timeseries(df)
+
+        # print(f"shape of Y_norm2 = {Y_norm2.shape}")
+
+        # plt.figure(figsize=(7, 7))
+
+        # for user in Y_norm2.index:
+        #     plt.plot(Y_norm2.columns, Y_norm2.loc[user], label=user, alpha=0.6)
+
+        # plt.xlabel("Days", fontsize=16)
+        # plt.ylabel("Balance", fontsize=16)
+        # plt.tight_layout()
+        # plt.show()
 
         print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
 
@@ -134,15 +180,17 @@ if __name__ == '__main__':
 
         n_neigs = {
             '100' : 10,
-            '1K' : 8,
+            '1K' : 5,
             '10K' : 6,
             '100K' : 4,
-            '1M' : 4
+            '1M' : 3
         }
 
         nbrs = NearestNeighbors(n_neighbors=n_neigs[dimension], metric='euclidean', n_jobs=-1)
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
+
+        # knn_matrix = knn_matrix.multiply(knn_matrix.T)
 
         print("Shape KNN:", knn_matrix.shape)
         print("nnz KNN:", knn_matrix.nnz)
@@ -150,7 +198,6 @@ if __name__ == '__main__':
         # Average number of non-zeros per row
         nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
         print("nnz per row:", round(nnz_per_row, 2))
-
         print("Is symmetric:", check_symmetric_sparse(knn_matrix))
 
         # Print knn matrix
@@ -214,14 +261,12 @@ if __name__ == '__main__':
     # Results
     dict_cluster = clustering_optimal_number(dimension, results_squic, plot=False)
 
-    print(dict_cluster.keys())
-
-    metrics = internal_metrics(dict_cluster, results_squic, leiden=True)
+    metrics = modularity_density(dict_cluster, results_squic, leiden=True)
 
     for rho, data in metrics.items():
         print(f"For rho {rho}:")
         for method, results in data.items():
-            print(f"    {method}: NCUT = {results['ncut']}, Q = {results['modularity']}, nCluster = {results['nCluster']}")
+            print(f"    {method}: PDensity = {results['p_density']}, Q = {results['modularity']}, nCluster = {results['nCluster']}")
 
-    # plot_ARI_f1(metrics, squic_method, dimension, save)
+    plot_PDens_Q(metrics, dimension, save)
     
