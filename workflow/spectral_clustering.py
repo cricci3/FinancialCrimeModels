@@ -37,7 +37,7 @@ def compute_normalized_laplacian(adj):
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3, print=False):
+def compute_eigenvalues_eigenvectors(L_norm, k=12, max_retries=3, print_info=False):
     """
     Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
     Retries with adjusted parameters if convergence is not reached.
@@ -48,7 +48,7 @@ def compute_eigenvalues_eigenvectors(L_norm, k=20, max_retries=3, print=False):
             eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
             
             if len(eigenvalues) == k or (len(eigenvalues) > 2 and len(eigenvalues) < k):
-                if print:
+                if print_info:
                     print(eigenvalues)
                 # Sort
                 idx = np.argsort(eigenvalues)
@@ -102,37 +102,41 @@ def find_optimal_clusters(graph, plot=True):
     # Compute eigenvalues
     eigenvalues, eigenvectors = compute_eigenvalues_eigenvectors(L_norm)
 
-    # Compute relative eigengaps
-    relative_eigengaps, k_values = compute_relative_eigengap(eigenvalues)
+    if eigenvalues is not None and eigenvectors is not None:
+        # Compute relative eigengaps
+        relative_eigengaps, k_values = compute_relative_eigengap(eigenvalues)
 
-    # Find optimal k (highest relative eigengap)
-    if len(relative_eigengaps) > 0:
-        optimal_k = k_values[np.argmax(relative_eigengaps)]
+        # Find optimal k (highest relative eigengap)
+        if len(relative_eigengaps) > 0:
+            optimal_k = k_values[np.argmax(relative_eigengaps)]
+        else:
+            optimal_k = 2  # default
+
+        if plot:
+            plt.figure(figsize=(12, 5))
+            # Plot eigenvalues
+            plt.subplot(1, 2, 1)
+            plt.plot(range(1, len(eigenvalues) + 1), eigenvalues, 'bo-')
+            plt.xlabel('Eigenvalue Index')
+            plt.ylabel('Eigenvalue')
+            plt.title('Laplacian Eigenvalues')
+            plt.grid(True)
+
+            # Plot relative eigengaps
+            plt.subplot(1, 2, 2)
+            plt.plot(k_values, relative_eigengaps, 'ro-')
+            plt.axvline(x=optimal_k, color='g', linestyle='--', label=f'Optimal k = {optimal_k}')
+            plt.xlabel('Number of Clusters (k)')
+            plt.ylabel('Relative Eigengap')
+            plt.title('Relative Eigengaps (Equation 10)')
+            plt.legend()
+            plt.grid(True)
+
+            plt.tight_layout()
+            plt.show()
     else:
-        optimal_k = 2  # default
-
-    if plot:
-        plt.figure(figsize=(12, 5))
-        # Plot eigenvalues
-        plt.subplot(1, 2, 1)
-        plt.plot(range(1, len(eigenvalues) + 1), eigenvalues, 'bo-')
-        plt.xlabel('Eigenvalue Index')
-        plt.ylabel('Eigenvalue')
-        plt.title('Laplacian Eigenvalues')
-        plt.grid(True)
-
-        # Plot relative eigengaps
-        plt.subplot(1, 2, 2)
-        plt.plot(k_values, relative_eigengaps, 'ro-')
-        plt.axvline(x=optimal_k, color='g', linestyle='--', label=f'Optimal k = {optimal_k}')
-        plt.xlabel('Number of Clusters (k)')
-        plt.ylabel('Relative Eigengap')
-        plt.title('Relative Eigengaps (Equation 10)')
-        plt.legend()
-        plt.grid(True)
-
-        plt.tight_layout()
-        plt.show()
+        optimal_k = 2
+        eigenvectors = None
 
     return optimal_k, eigenvectors
 
