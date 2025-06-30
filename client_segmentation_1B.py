@@ -181,7 +181,7 @@ if __name__ == '__main__':
         n_neigs = {
             '100' : 10,
             '1K' : 5,
-            '10K' : 6,
+            '10K' : 5,
             '100K' : 4,
             '1M' : 3
         }
@@ -233,6 +233,13 @@ if __name__ == '__main__':
 
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
             printMatrix = True
+
+            # Print knn matrix
+            plt.figure(figsize=(7, 7))
+            plt.spy(knn_matrix, markersize=5)
+            plt.ylabel("Users", fontsize=18)
+            plt.title("KNN")
+            plt.show()
         else:
             printMatrix = False
 
@@ -266,7 +273,7 @@ if __name__ == '__main__':
     for rho, data in metrics.items():
         print(f"For rho {rho}:")
         for method, results in data.items():
-            print(f"    {method}: PDensity = {results['p_density']}, Q = {results['modularity']}, nCluster = {results['nCluster']}")
+            print(f"    {method}: PDensity = {results['p_density']}, Int Density = {results['int_density']}, Q = {results['modularity']}, nCluster = {results['nCluster']}, nIsolated  = {results['isolated']}")
 
-    plot_PDens_Q(metrics, dimension, save)
+    plot_PDens_Q(name, metrics, dimension, squic_method, save)
     
