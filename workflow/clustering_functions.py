@@ -396,6 +396,27 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
 
     return int_metrics
 
+def compute_partition_density(G, community, D_sum):
+    n_alpha = len(community)
+
+    subgraph = G.subgraph(community)
+    m_alpha = subgraph.number_of_edges()
+
+    numerator = m_alpha - (n_alpha - 1)
+    denominator = (n_alpha - 2) * (n_alpha - 1)
+
+    if denominator > 0:
+        D_sum += m_alpha * (numerator / denominator)
+    return D_sum
+
+
+def internal_density(G, community, n, density_sum):
+    subgraph = G.subgraph(community)
+    m = subgraph.number_of_edges()
+    max_possible = n * (n - 1) / 2
+    density_sum += m / max_possible # internal density of single comm
+    return density_sum
+
 
 def modularity_density(dict_cluster, W_matrices, leiden=False):
     matrix_dict = next(iter(W_matrices.values()))
@@ -444,25 +465,27 @@ def modularity_density(dict_cluster, W_matrices, leiden=False):
                     
                     m_total = G.number_of_edges()
                     D_sum = 0
-                    n_skip = 0
+                    isolated_node = 0
+
+                    density_sum = 0
 
                     for comm in partition:
-                        n_alpha = len(comm)
-                        if n_alpha < 3:
-                            n_skip += 1
-                            continue  # skip communities too small for partition density
+                        n = len(comm)
+                        if n == 1:
+                            isolated_node += 1
+                            continue
+                        else:
+                            density_sum = internal_density(G, comm, n, density_sum)
 
-                        subgraph = G.subgraph(comm)
-                        m_alpha = subgraph.number_of_edges()
+                            if n >= 3: # skip communities too small for partition density
+                                D_sum = compute_partition_density(G, comm, D_sum)
 
-                        numerator = m_alpha - (n_alpha - 1)
-                        denominator = (n_alpha - 2) * (n_alpha - 1)
-
-                        if denominator > 0:
-                            D_sum += m_alpha * (numerator / denominator)
+                    int_metrics[l][method]["isolated"] = isolated_node
+                    
+                    avg_internal_density = density_sum / len(partition) # avg internal density
+                    int_metrics[l][method]["int_density"] = float(round(avg_internal_density, 2))
 
                     partition_density = (2 / m_total) * D_sum if m_total > 0 else 0
-                    print(f"for {method} - rho {l}, n skip = {n_skip} out of {len(partition)} community")
                     int_metrics[l][method]["p_density"] = float(round(partition_density, 2))
 
                     modularity = community.modularity(G, dict_cluster[method][l])
