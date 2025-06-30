@@ -449,9 +449,11 @@ def modularity_density(dict_cluster, W_matrices, leiden=False):
                     print(f"[Warning] No partition for method={method}, lambda={l}. Skipping.")
 
                     int_metrics[l][method]["p_density"] = 0
+                    int_metrics[l][method]["int_density"] = 0
                     int_metrics[l][method]['modularity'] = 0
                     int_metrics[l][method]['CC'] = 0
                     int_metrics[l][method]['nCluster'] = 0
+                    int_metrics[l][method]['isolated'] = "all isolated elements"
                 else:
 
                     # Ensure all off-diagonal entries are positive
@@ -481,7 +483,7 @@ def modularity_density(dict_cluster, W_matrices, leiden=False):
                                 D_sum = compute_partition_density(G, comm, D_sum)
 
                     int_metrics[l][method]["isolated"] = isolated_node
-                    
+
                     avg_internal_density = density_sum / len(partition) # avg internal density
                     int_metrics[l][method]["int_density"] = float(round(avg_internal_density, 2))
 
@@ -715,7 +717,7 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
     plt.show()
 
 
-def plot_PDens_Q(metrics_dict, dimension, save=False):
+def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
 
     colors = {
         'louvain':'green',
@@ -766,9 +768,9 @@ def plot_PDens_Q(metrics_dict, dimension, save=False):
     plt.grid(True)
 
     if save:
-        os.makedirs(f'images/{dimension}', exist_ok=True)
-        plt.savefig(f"images/{dimension}/PDens_Q_all_methods.png")
-        print(f"Plot saved in images/{dimension}/PDens_Q_all_methods.png")
+        os.makedirs(f'images/{name}/{dimension}', exist_ok=True)
+        plt.savefig(f"images/{name}/{dimension}/{squic_method}-PDens_Q.png")
+        print(f"Plot saved in images/{dimension} image {squic_method}-PDens_Q.png")
 
     plt.show()
 
