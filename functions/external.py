@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
-from functions.preprocess import PaySim_preprocessing
+from functions.preprocess import PaySim_preprocessing, AMLSim_preprocessing
 from functions.SQUIC_functions import *
 from sklearn.metrics import f1_score, normalized_mutual_info_score
 from sklearn.model_selection import train_test_split
@@ -40,7 +40,10 @@ def load_dataset():
             print(f"Error: {e}")
             continue
 
-    if name == 'PAYSIM':
+    if name == 'AMLSIM':
+        df, account_prop = AMLSim_preprocessing(dimension)
+    elif name == 'PAYSIM':
+        # account prop for paysim is different, contains "class" also the type of user: B, C, M
         df, account_prop = PaySim_preprocessing(dimension)
 
     return df, name, dimension, account_prop
@@ -85,15 +88,20 @@ def linear_DA(data_train, labels_train, data_test, labels_test, Theta):
     return results_lda
 
 
-def prepare_LDA(Theta_mtrx, account_prop):
+def prepare_LDA(Theta_mtrx, account_prop, fraud=False):
     ext_metrics = {}
 
     labels = []
-    for user in account_prop.items():
-        if user[-1]['class'] == 'B':
-            labels.append('C') # If user is B -> act like it is C (most similar class)
-        else:
-            labels.append(user[-1]['class']) # class can be C, M and B
+
+    if fraud == True:
+        for user in account_prop.items():
+            if user[-1]['class'] == 'B':
+                labels.append('C') # If user is B -> act like it is C (most similar class)
+            else:
+                labels.append(user[-1]['class']) # class can be C, M and B
+    else:
+        for user in account_prop.items():
+            labels.append(user[-1]['fraud'])
 
     # Convert to array
     labels = np.array(labels)
