@@ -1,6 +1,6 @@
-from workflow.internal import load_dataset, normalization, extract_timeseries
-from workflow.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
-from workflow.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
+from functions.internal import load_dataset, normalization, extract_timeseries
+from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
+from functions.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
 import matplotlib.pyplot as plt
 import json
 from scipy import sparse

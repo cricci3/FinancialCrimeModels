@@ -1,5 +1,5 @@
-from workflow.internal import *
-from workflow.clustering_functions import *
+from functions.internal import *
+from functions.clustering_functions import *
 
 
 if __name__ == '__main__':

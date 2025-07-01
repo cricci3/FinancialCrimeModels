@@ -1,5 +1,5 @@
-from workflow.internal import extract_timeseries, normalization, adjaceny_matrix, squic_fit_computation, clustering, internal_metrics, visualize_metrics, visualize_graph_internal
-from workflow.external import load_dataset, squic_computation, prepare_LDA , external_metrics, visualize_graph_external
+from functions.internal import extract_timeseries, normalization, adjaceny_matrix, squic_fit_computation, clustering, internal_metrics, visualize_metrics, visualize_graph_internal
+from functions.external import load_dataset, squic_computation, prepare_LDA , external_metrics, visualize_graph_external
 
 
 if __name__ == '__main__':
