@@ -1,5 +1,5 @@
-from workflow.preprocess import *
-from workflow.SQUIC_functions import *
+from functions.preprocess import *
+from functions.SQUIC_functions import *
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D  # for custom legend

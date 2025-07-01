@@ -1,8 +1,8 @@
 import json
 import numpy as np
 import pandas as pd
-from workflow.preprocess import PaySim_preprocessing
-from workflow.SQUIC_functions import *
+from functions.preprocess import PaySim_preprocessing
+from functions.SQUIC_functions import *
 from sklearn.metrics import f1_score, normalized_mutual_info_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
