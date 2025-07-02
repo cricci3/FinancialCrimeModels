@@ -1,4 +1,4 @@
-from functions.internal import load_dataset, normalization, extract_timeseries
+from functions.internal import load_dataset_1B, normalization, extract_timeseries
 from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
 from functions.clustering_functions import clustering_optimal_number, modularity_density, plot_PDens_Q
 import matplotlib.pyplot as plt
@@ -121,7 +121,7 @@ if __name__ == '__main__':
             exit(1)
         
     else: # Normal run
-        Y, name, dimension, account_prop = load_dataset()
+        Y, name, dimension, account_prop = load_dataset_1B()
 
         extract_timeseries(Y, name)
 
