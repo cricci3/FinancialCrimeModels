@@ -13,23 +13,23 @@ import networkx as nx
 from cosmograph import cosmo
 
 
-def parse_input(user_input):
+def parse_input(user_input, name_dataset):
     """Parse and validate the dataset input, which can be 'NAME_DIMENSION' or just 'NAME' (e.g., LIBRA)."""
     user_input = user_input.strip().upper()
     parts = user_input.split("_")
 
-    valid_names_with_dimensions = {"AMLSIM", "PAYSIM"}
+    valid_names_with_dimensions = {name_dataset}
     valid_names_without_dimensions = {"LIBRA"}
     valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
 
-    if len(parts) == 1:
-        name = parts[0]
-        if name not in valid_names_without_dimensions:
-            raise ValueError(f"Invalid dataset name '{name}'. Valid options are: "
-                             f"{', '.join(valid_names_with_dimensions | valid_names_without_dimensions)}")
-        return name, None
+    # if len(parts) == 1:
+    #     name = parts[0]
+    #     if name not in valid_names_without_dimensions:
+    #         raise ValueError(f"Invalid dataset name '{name}'. Valid options are: "
+    #                          f"{', '.join(valid_names_with_dimensions | valid_names_without_dimensions)}")
+    #     return name, None
 
-    elif len(parts) == 2:
+    if len(parts) == 2:
         name, dimension = parts
         if name not in valid_names_with_dimensions:
             raise ValueError(f"Invalid dataset name '{name}'. Valid options for dimensioned datasets are: "
@@ -39,16 +39,38 @@ def parse_input(user_input):
         return name, dimension
 
     else:
-        raise ValueError("Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K) or just NAME (e.g., LIBRA)")
+        # raise ValueError("Input must be in the format NAME_DIMENSION (e.g., PAYSIM_10K) or just NAME (e.g., LIBRA)")
+        raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., {name_dataset}_10K)")
 
 
-def load_dataset():
+def load_dataset_1A():
     """Prompt user input and load the corresponding dataset."""
     while True:
-        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K) or LIBRA: ")
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., PAYSIM_10K): ")
 
         try:
-            name, dimension = parse_input(user_input)
+            name, dimension = parse_input(user_input, "PAYSIM")
+            break
+        except ValueError as e:
+            print(f"Error: {e}")
+            continue
+
+    if name == 'PAYSIM':
+        # account prop for paysim is different, contains "class" also the type of user: B, C, M
+        df, account_prop = PaySim_preprocessing(dimension)
+    else:
+        df = None
+
+    return df, name, dimension, account_prop
+
+
+def load_dataset_1B():
+    """Prompt user input and load the corresponding dataset."""
+    while True:
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
+
+        try:
+            name, dimension = parse_input(user_input, "AMLSIM")
             break
         except ValueError as e:
             print(f"Error: {e}")
@@ -56,12 +78,6 @@ def load_dataset():
 
     if name == 'AMLSIM':
         df, account_prop = AMLSim_preprocessing(dimension)
-    elif name == 'PAYSIM':
-        # account prop for paysim is different, contains "class" also the type of user: B, C, M
-        df, account_prop = PaySim_preprocessing(dimension)
-    elif name == 'LIBRA':
-        # future implementation
-        df, account_prop = Libra_preprocessing()
     else:
         df = None
 
@@ -74,18 +90,18 @@ def extract_timeseries(df, name, dimension=None, type_df=None):
     plt.figure(figsize=(7,7))
 
     if type_df == 'norm':
+        df = df.T
+
         if name == 'AMLSIM':
-            df = df.T
-        n_days, n_users = df.shape
+            n_days, n_users = df.shape
+            # Create labels
+            user_labels = [f"User_{i}" for i in range(n_users)]
+            day_labels = list(range(n_days))
 
-        # Create labels
-        user_labels = [f"User_{i}" for i in range(n_users)]
-        day_labels = list(range(n_days))
+            # Create the DataFrame
+            df = pd.DataFrame(df, index=day_labels, columns=user_labels)
 
-        # Create the DataFrame
-        df = pd.DataFrame(df, index=day_labels, columns=user_labels)
-
-    if name == 'PAYSIM':
+    if name == 'PAYSIM' and type_df != 'norm':
         colors = {'Clients': 'mediumseagreen', 
               'Bank': 'crimson', 
               'Merchants': 'darkturquoise'}
@@ -128,8 +144,6 @@ def extract_timeseries(df, name, dimension=None, type_df=None):
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            # color = 'mediumseagreen' if user.startswith('C') else 'hotpink'
-
             plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
 
     # Add title and labels
@@ -143,37 +157,6 @@ def extract_timeseries(df, name, dimension=None, type_df=None):
     # Display the plot
     plt.tight_layout()
     plt.show()
-    
-
-# def knn_graph(trans_matrix):
-#     similarity = trans_matrix + trans_matrix.T  # make it symmetrical
-
-#     # from transaction matrix to distance matrix (the high the amount the closer the points)
-#     # distance(i, j) = 1 / (1 + similarity(i, j))
-#     similarity_coo = similarity.tocoo()
-#     distance_data = 1.0 / (1.0 + similarity_coo.data)
-#     distance_matrix = csr_matrix((distance_data, (similarity_coo.row, similarity_coo.col)), shape=similarity.shape)
-
-#     n_neighbors = 2
-#     # 3 for 100
-#     # 2 for 1K
-#     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric='precomputed')
-#     nbrs.fit(distance_matrix)
-#     knn_graph = nbrs.kneighbors_graph(distance_matrix, mode='connectivity')  # binary adjacency matrix
-
-#     print(knn_graph)
-
-#     # make it symmetric
-#     knn_graph = knn_graph.maximum(knn_graph.T)
-
-#     # Use knn_graph as a mask to extract similarity values: we want to return a similarity matrix, not the distance or binary kNN mask
-#     similarity_knn = similarity.multiply(knn_graph)
-
-#     similarity_knn.tocsr()
-
-#     print(f"knn graph \n {similarity_knn}")
-
-#     return knn_graph
 
 
 def prepare_timeseries(df):
@@ -224,7 +207,8 @@ def normalization(df, name):
     
     elif name == 'PAYSIM':
         # Y = df.T.values  # Convert to (users, days)
-        Y = df.T
+        # Y = df.T
+        Y = df
 
         stds = np.std(Y, axis=1)
         safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
