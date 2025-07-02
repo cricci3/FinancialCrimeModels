@@ -206,14 +206,20 @@ def prepare_timeseries(df):
 
 def normalization(df, name):
     if name == 'AMLSIM':
-        # df is user on the rows and days on the columns
+        # # df is user on the rows and days on the columns
+        # Y = df
+        # # Compute std dev per row
+        # row_std = np.std(Y, axis=1, keepdims=True)
+        # # Avoid division by zero -> when the balance of a user is constant
+        # row_std[row_std == 0] = 1.0
+        # # Normalize each row (timeseries of a user)
+        # Y_new = Y / row_std
+        # return Y_new
+        
         Y = df
-        # Compute std dev per row
-        row_std = np.std(Y, axis=1, keepdims=True)
-        # Avoid division by zero -> when the balance of a user is constant
-        row_std[row_std == 0] = 1.0
-        # Normalize each row (timeseries of a user)
-        Y_new = Y / row_std
+        stds = np.std(Y, axis=1)
+        safe_stds = np.clip(stds, 1e-8, None)  # don't allow std < 1e-8
+        Y_new = np.diag(1 / safe_stds) @ Y
         return Y_new
     
     elif name == 'PAYSIM':
