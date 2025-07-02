@@ -15,9 +15,9 @@ from scipy.sparse import lil_matrix
 from scipy.sparse.csgraph import connected_components
 from collections import defaultdict
 
-from workflow.SQUIC_functions import print_matrix
+from functions.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
-from workflow.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
+from functions.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
 import igraph as ig
 import leidenalg as la
 
