@@ -129,14 +129,24 @@ if __name__ == '__main__':
         # visualize timeseries
         extract_timeseries(Y, name, dimension)
 
-        Y = Y.T.values
+        print(Y)
+
+        # now this is good
+        print(Y.shape)
+        dim1, dim2 = Y.shape
+        if dim1 == 365:
+            Y = Y.T
+
+        # norm is ok -> lead to SQUIC-Fit results that we want
         Y_norm = normalization(Y, name)
 
         # visualize timeseries with normalized data
         extract_timeseries(Y_norm, name, dimension, type_df='norm')
 
-        print("NaNs?", np.isnan(Y_norm).any())
-        print("Infs?", np.isinf(Y_norm).any())
+        print(Y_norm)
+
+        print("NaNs in df?", np.isnan(Y_norm.values).any())
+        print("Infs in df?", np.isinf(Y_norm.values).any())
         print("Max:", np.max(Y_norm))
         print("Min:", np.min(Y_norm))
         print("Mean std per row (should be 1):", round(np.mean(np.std(Y_norm, axis=1)), 2))
