@@ -17,7 +17,7 @@ def parse_input(user_input):
     except ValueError:
         raise ValueError("Input must be in the format NAME_DIMENSION (e.g., PAYSIM_10K)")
 
-    valid_names = {"PAYSIM"}
+    valid_names = {"PAYSIM", "AMLSIM"}
     valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
 
     if name not in valid_names:
@@ -43,7 +43,6 @@ def load_dataset():
     if name == 'AMLSIM':
         df, account_prop = AMLSim_preprocessing(dimension)
     elif name == 'PAYSIM':
-        # account prop for paysim is different, contains "class" also the type of user: B, C, M
         df, account_prop = PaySim_preprocessing(dimension)
 
     return df, name, dimension, account_prop
@@ -88,20 +87,20 @@ def linear_DA(data_train, labels_train, data_test, labels_test, Theta):
     return results_lda
 
 
-def prepare_LDA(Theta_mtrx, account_prop, fraud=False):
+def prepare_LDA(Theta_mtrx, account_prop, target='fraud'):
     ext_metrics = {}
 
     labels = []
 
-    if fraud == True:
+    if target == 'class':
         for user in account_prop.items():
-            if user[-1]['class'] == 'B':
+            if user[-1][target] == 'B':
                 labels.append('C') # If user is B -> act like it is C (most similar class)
             else:
-                labels.append(user[-1]['class']) # class can be C, M and B
-    else:
+                labels.append(user[-1][target]) # class can be C, M and B
+    elif target == 'fraud':
         for user in account_prop.items():
-            labels.append(user[-1]['fraud'])
+            labels.append(user[-1][target])
 
     # Convert to array
     labels = np.array(labels)
