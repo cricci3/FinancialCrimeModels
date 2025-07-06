@@ -128,14 +128,14 @@ def extract_timeseries(df, name, dimension=None, type_df=None):
     
         if dimension in bank_dimension:
             legend_elements = [
-                Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
-                Line2D([0], [0], color='crimson', lw=4, label='Bank'),
-                Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
+                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
+                Line2D([0], [0], color=colors.get('Bank'), lw=4, label='Bank'),
+                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
             ]
         else:
             legend_elements = [
-                Line2D([0], [0], color='mediumseagreen', lw=4, label='Clients'),
-                Line2D([0], [0], color='darkturquoise', lw=4, label='Merchants')
+                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
+                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
             ]
 
         if type_df != 'norm':
@@ -313,7 +313,7 @@ def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbsc
     plt.show()
 
 
-def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
+def visualize_graph_internal(W_matrices, squic_method, dict_partition, account_prop, name, two_comm=True):
     # colors show the clusters
     # intensity of color shows amount of money within this account (node weight)
 
@@ -322,17 +322,17 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
             'louvain' : {},
             'dbscan' : {},
             'spectral' : {}
-        } for rho in W_matrices.keys()
+        } for rho in W_matrices[squic_method].keys()
     }
     
-    for method, clustering in dict_partition.items():
+    for rho, partition in dict_partition[squic_method].items():
         
-        for l, X in W_matrices.items():
+        for rho, X in W_matrices[squic_method].items():
             # Create a graph from matrix X
             G = nx.from_numpy_array(X)
 
             # Extract clustering associated to matrix X with l=rho and method 
-            partition = clustering[l]
+            # partition = clustering[rho]
             
             # Convert partition list of sets to a node-to-community mapping
             community_mapping = {}
@@ -412,26 +412,33 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
                 })
             links = pd.DataFrame(links_data)
             links['weight'] = links['weight'].abs()  # only positive thickness
-            links['weight'] = links['weight'] * 10  # only positive thickness
+            # links['weight'] = links['weight'] * 10  # only positive thickness
+            
+            if two_comm == True:
+                color_list = [
+                    ["0", "#90ee90"],  # 'Clients': 'mediumseagreen'
+                    ["1", "#00CED1"],  # 'Merchants': 'darkturquoise'
+                ]
+            else:
+                color_list = [
+                    ["0", "#4682B4"],  # Steelblue
+                    ["1", "#FF9999"],  # Red/Pink
+                    ["2", "#4169E1"],  # Royal Blue
+                    ["3", "#FFD700"],  # Yellow
+                    ["4", "#FFCC99"],  # Orange
+                    ["5", "#CCFFE5"],  # Light blue
+                    ["6", "#FFFF99"],  # Yellow
+                    ["7", "#CCFF99"],  # Lime
+                    ["8", "#CCFFFF"],  # Cyan
+                    ["9", "#CCCCFF"],  # Lilla
+                    ["10", "#E9967A"],  # Dark Salmon
+                    ["11", "#E5CCFF"],  # Dark Lilla
+                    ["12", "#DC143C"], # Crimson Red
+                    ["13", "#FFFFFF"], # White
+                    ["14", "#F0FFF0"],  # Honeydew,
+                ]
 
-            color_list = [
-                ["0", "#4682B4"],  # Steelblue
-                ["1", "#FF9999"],  # Red/Pink
-                ["2", "#4169E1"],  # Royal Blue
-                ["3", "#FFD700"],  # Yellow
-                ["4", "#FFCC99"],  # Orange
-                ["5", "#CCFFE5"],  # Light blue
-                ["6", "#FFFF99"],  # Yellow
-                ["7", "#CCFF99"],  # Lime
-                ["8", "#CCFFFF"],  # Cyan
-                ["9", "#CCCCFF"],  # Lilla
-                ["10", "#E9967A"],  # Dark Salmon
-                ["11", "#E5CCFF"],  # Dark Lilla
-                ["12", "#DC143C"], # Crimson Red
-                ["13", "#FFFFFF"], # White
-                ["14", "#F0FFF0"],  # Honeydew,
-            ]
-
+            # COSMOGRAPH docs: https://colab.research.google.com/drive/1Rt8rmmeMuWyFjEqae2DdJ3NYymtjC9cT#scrollTo=IZUK7ioL1xKr
             widget = cosmo(
                 points=points,
                 links=links,
@@ -439,16 +446,18 @@ def visualize_graph_internal(W_matrices, dict_partition, account_prop, name):
                 link_source_by='source',
                 link_target_by='target',
                 link_width_by='weight', # width of an edge given by weight = value in X between i and j
+                link_color='#E3E3E3',
+                link_greyout_opacity=0.1,
                 # link_color_by='community',
                 point_color_by='community',
                 point_label_by='class', # or id or fraud 
                 point_size_by='degree', #'degree
                 point_color_strategy='map',
                 point_color_by_map=color_list,
-                # background_color='#FFFFFF',
+                background_color='#FFFFFF',
                 show_labels_for=fraudolent
             )
 
-            widget_dict[l][method] = widget
+            widget_dict[rho]['spectral'] = widget
     
     return widget_dict
