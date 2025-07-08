@@ -6,7 +6,7 @@
    
     Follow the [SQUIC User Manual](https://www.gitlab.ci.inf.usi.ch/SQUIC/gitlab-profile/-/blob/main/SQUIC_User_Manual.pdf) to install SQUIC Library.
 
-2. **Install all required dependencies**
+1. **Install all required dependencies**
     
     Python 3.10 or higher is required, then install all required dependencies with:
 
@@ -14,55 +14,81 @@
     pip install -r requirements.txt
     ```
 
-3. **Download the Dataset**  
+2. **Download the Dataset**  
    Use the links provided in [**Data Sources**](README.md#data-sources) section to download the datasets.
 
-4. **Setup the Folder Structure**  
+3. **Setup the Folder Structure**  
    In the root directory of the project, create a folder named `Datasets` with the following structure:
 
     ```
     FinancialCrimeModels
-    |_ BenchClientSegment.py
-    |_ BenchClientSegment_labels.py
-    |_ ...
-    |_ Datasets
-        |_ AMLSim
-            |_ 100 users (with inside the csv files)
-            |_ 1K users (with inside the csv files)
-            |_ 10K users (with inside the csv files)
-            |_ 100K users (with inside the csv files)
-            |_ 1M users (with inside the csv files)
-        |_ PaySim
-            |_ 100 users (with inside the csv files)
-            |_ 1K users (with inside the csv files)
-            |_ 10K users (with inside the csv files)
-            |_ 100K users (with inside the csv files)
-            |_ 1M users (with inside the csv files)
+    ├── client_segmentation_1A.py
+    ├── client_segmentation_1B.py
+    ├── ...
+    ├── Datasets
+        ├── AMLSim
+            ├── 100 users (with inside the csv files)
+            ├── 1K users (with inside the csv files)
+            ├── 10K users (with inside the csv files)
+            ├── 100K users (with inside the csv files)
+            ├── 1M users (with inside the csv files)
+        ├── PaySim
+            ├── 100 users (with inside the csv files)
+            ├── 1K users (with inside the csv files)
+            ├── 10K users (with inside the csv files)
+            ├── 100K users (with inside the csv files)
+            ├── 1M users (with inside the csv files)
     ```
 
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
-5. **Run the Program**  
-    Execute either `BenchClientSegment.py` (`notebook internal.ipynb` if you want to visualize the graph with Cosmograph) or `BenchClientSegment_labels.py` (`notebook external.ipynb` if you want to visualize the graph with Cosmograph) depending on your needs.
+4. **Run the Program**  
+    - To run **spectral clustering on PaySim datasets** (fixed number of clusters `k=2`), execute:
 
-6. **Input the Dataset Name**  
+        ```bash
+        python client_segmentation_1A.py
+        ```
+
+   - To run **multi-method clustering on AMLSim datasets** (dynamic number of clusters), execute:
+
+     ```bash
+     python client_segmentation_1B.py
+     ```
+
+5. **Input the Dataset Name**  
     When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
 
 
-7. **View Results**  
-    Once the program runs, it will output results in the following format:
-    ```
-    For lambda = 0.001 : {'ncut': 3.28, 'rcut': 292.87, 'modularity': 0.16, 'CC': 2}
-    For lambda = 0.01 : {'ncut': 2.85, 'rcut': 99.36, 'modularity': 0.25, 'CC': 2}
-    For lambda = 0.02 : {'ncut': 2.73, 'rcut': 60.61, 'modularity': 0.27, 'CC': 2}
-    ...
-    ```
+6. **View Results**  
+    For `client_segmentation_1A.py` (PaySim – Spectral Clustering, `k=2`):
+   Output will look like:
 
-Where:
-- `ncut`: Normalized Cut
-- `rcut`: Ratio Cut
-- `modularity`: Community modularity score
-- `CC`: Number of connected components
+   ```
+   For rho = 0.6 : {'spectral': {'nCluster': 2, 'ARI': -0.03, 'f1': 0.58}}
+   For rho = 0.5 : {'spectral': {'nCluster': 2, 'ARI': 1.0, 'f1': 1.0}}
+   For rho = 0.4 : {'spectral': {'nCluster': 2, 'ARI': 1.0, 'f1': 1.0}}
+   ```
+
+   - `ARI`: Adjusted Rand Index
+   - `f1`: F1 Score
+   - `nCluster`: Number of clusters (should be 2)
+    
+   For `client_segmentation_1B.py` (AMLSim – Multiple Clustering Methods):
+   Output will look like:
+
+   ```
+   For rho = 0.01:
+       louvain:  PDensity = 0.3,  Int Density = 0.75, Q = 0.3,  nCluster = 4, nIsolated = 0
+       leiden:   PDensity = 0.33, Int Density = 0.69, Q = 0.27, nCluster = 5, nIsolated = 0
+       dbscan:   PDensity = 0.23, Int Density = 0.24, Q = -0.0, nCluster = 1, nIsolated = 0
+   ```
+
+   - `PDensity`: Average density between clusters
+   - `Int Density`: Average density within clusters
+   - `Q`: Modularity score
+   - `nCluster`: Number of clusters detected
+   - `nIsolated`: Number of isolated nodes
+
 
 ## Data Sources
 - [AMLSim](https://github.com/IBM/AMLSim) datasets with [100-1K-10K-100K-1M](https://github.com/IBM/AMLSim/wiki/Download-Example-Data-Set) users can be downloaded from [here](https://www.dropbox.com/scl/fo/7g35w7wk7gglve627we3k/AHjP6pnCmV8M62L7RxTFtkU?rlkey=6ksx339ac9117onfx3l0g3fji&e=1&dl=0)
