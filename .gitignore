@@ -15,6 +15,7 @@ Anomaly Detection/Elliot19_reproduce
 playground/squic_folder/*.npz
 playground/squic_folder/*.json
 
+glasso_images/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
