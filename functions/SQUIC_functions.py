@@ -7,6 +7,7 @@ from scipy.sparse import coo_matrix
 import json 
 import matplotlib.pyplot as plt
 import os
+from functions.clustering_functions import study_CC
 
 
 '''
@@ -234,8 +235,8 @@ def print_matrix(X, show=False, save=False, path=None, file_name=None):
         plt.show()
 
 
-def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None):
-    lambdas = read_lambdas(name, dimension, "no-bias")
+def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None, lambdas="no-bias"):
+    lambdas = read_lambdas(name, dimension, lambdas)
 
     ROWS = len(Y_norm)
 
@@ -329,7 +330,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
     return W_matrices
 
 
-def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatrix=False, save=False):
+def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study=False, printMatrix=False, save=False):
     
     lambdas = read_lambdas(name, dimension, "bias")
 
@@ -362,6 +363,9 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, print
             print(f" Matrix is symmetric per rho {rho}")
         else:
             print(f" Matrix is not symmetric per rho {rho}")
+
+        if study:
+            study_CC(W_matrices[rho])
 
     return W_matrices
 
