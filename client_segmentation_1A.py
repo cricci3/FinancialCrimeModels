@@ -155,7 +155,7 @@ if __name__ == '__main__':
             '100' : 10,
             '1K' : 8,
             '10K' : 4,
-            '100K' : 3,
+            '100K' : 3, # can run even with 4
             '1M' : 2 # then remove self loops
         }
 
@@ -199,7 +199,9 @@ if __name__ == '__main__':
         plt.savefig(f'images/{dimension}/knn_matrix')
         plt.show()
 
-        if ask_yes_no("Do you want to study the CC of KNN matrix?") == 'Y':
+        if ask_yes_no("Do you want to study the CC of KNN matrix and SQUIC-Fit results?") == 'Y':
+            # A plot showing the top 5 components of KNN matrix and SQUIC-Fit results will be show
+            study = True
             study_CC(knn_matrix)
 
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
@@ -213,7 +215,7 @@ if __name__ == '__main__':
             save = False
         
         squic_method = 'squic-fit-matrix'
-        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save)
+        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, study, printMatrix, save)
     
     else:
         if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
