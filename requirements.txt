@@ -10,3 +10,4 @@ tqdm
 squic
 igraph
 leidenalg
+scienceplots
