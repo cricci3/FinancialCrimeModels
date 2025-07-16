@@ -6,6 +6,8 @@ from scipy.sparse import csr_matrix, lil_matrix, triu, find, isspmatrix_csr
 from scipy.sparse import coo_matrix
 import json 
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use(['science'])
 import os
 from functions.clustering_functions import study_CC
 
@@ -214,17 +216,13 @@ def print_matrix(X, show=False, save=False, path=None, file_name=None):
     '''
     Function to print adjaceny matrix
     '''
-    #plt.figure(figsize=(10, 10), dpi=300)
     plt.figure(figsize=(7, 7))
-    # plt.spy(X, markersize=5, c="#484154")
     plt.spy(X, markersize=5)
     # plt.xlabel("Users", fontsize=18)
     plt.ylabel("Users", fontsize=18)
-    # plt.ylabel("Users")
 
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18)  
-    # plt.title("Sparsity Pattern of Precision Matrix (X)")
 
     if save:
         # if path does not exists, create it

@@ -15,8 +15,9 @@ from scipy.sparse import lil_matrix
 from scipy.sparse.csgraph import connected_components
 from collections import defaultdict
 
-from functions.SQUIC_functions import print_matrix
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use(['science'])
 from functions.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
 import igraph as ig
 import leidenalg as la
@@ -271,11 +272,6 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
 
 
 def clustering_2_communities(results_squic, squic_method):
-    '''
-    if method='scikit-learn' use spectral clustering of this lib
-    else use spectral clustering implemented in spectral_clustering.py file
-    '''
-
     dict_cluster = {
         squic_method : {}
     }
@@ -698,9 +694,9 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
         ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
 
     # Axis labels
-    ax1.set_xlabel("lambda")
-    ax1.set_ylabel("ARI", color='black')
-    ax2.set_ylabel("F1 Score", color='black')
+    ax1.set_xlabel("lambda", fontsize=18)
+    ax1.set_ylabel("ARI", color='black', fontsize=18)
+    ax2.set_ylabel("F1 Score", color='black', fontsize=18)
 
     # Legends
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -788,7 +784,7 @@ def study_CC(matrix):
     print(f"Total components: {len(component_sizes)}")
     print(f"Top 5 component sizes: {component_sizes[:5]}")
 
-    # Step 2: Map node index to component ID
+    # Map node index to component ID
     node_to_color_group = {}  # node_id -> 0,1,2,3,4 for top 5, -1 for rest
 
     for i, comp in enumerate(top_components):
@@ -800,24 +796,21 @@ def study_CC(matrix):
         if node not in node_to_color_group:
             node_to_color_group[node] = -1
 
-    # Step 3: Convert sparse matrix to COO format for coordinate access
     X_coo = matrix.tocoo()
 
-    # Step 4: Prepare color map for 6 groups (5 top + "other")
     colors = ['red', 'green', 'blue', 'orange', 'purple', 'gray']
     group_coords = {i: ([], []) for i in range(-1, top_k)}  # group -> (rows, cols)
 
     for row, col in zip(X_coo.row, X_coo.col):
         group = node_to_color_group.get(row, -1)
-        # Only plot upper triangle (or all if undirected)
+        # Only plot upper triangle
         if row <= col:
             group_coords[group][0].append(row)
             group_coords[group][1].append(col)
 
-    # Step 5: Plot
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(7, 7))
     for group_id, (rows, cols) in group_coords.items():
-        plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Group {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
+        plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Component {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
 
     plt.xlabel("Users", fontsize=14)
     plt.ylabel("Users", fontsize=14)

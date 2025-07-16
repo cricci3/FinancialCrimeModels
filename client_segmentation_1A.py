@@ -2,13 +2,14 @@ from functions.internal import load_dataset_1A, normalization, extract_timeserie
 from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
 from functions.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use(['science'])
 import json
 from scipy import sparse
 from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 import numpy as np
 import os
-import networkx as nx
 
 
 def ask_yes_no(prompt, default=None):
@@ -46,8 +47,8 @@ if __name__ == '__main__':
     corresponding dataset dimension.
 
     Note:
-    - The data must have been saved from a **previous successful run** using the same dimension.
-    - On the **first run** for a given dimension, you must generate and save this data by answering 
+    - The data must have been saved from a previous successful run using the same dimension.
+    - On the first run for a given dimension, you must generate and save this data by answering 
       "Y" when prompted to cache it.
     '''
     user_input = ask_yes_no("\nDo you want to load data?")
@@ -131,13 +132,11 @@ if __name__ == '__main__':
 
         print(Y)
 
-        # now this is good
         print(Y.shape)
         dim1, dim2 = Y.shape
         if dim1 == 365:
             Y = Y.T
 
-        # norm is ok -> lead to SQUIC-Fit results that we want
         Y_norm = normalization(Y, name)
 
         # visualize timeseries with normalized data
@@ -163,10 +162,10 @@ if __name__ == '__main__':
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
 
-        if dimension == '1M':
-            # Remove self-loops
-            knn_matrix.setdiag(0)
-            knn_matrix.eliminate_zeros()
+        # if dimension == '1M':
+        #     # Remove self-loops
+        #     knn_matrix.setdiag(0)
+        #     knn_matrix.eliminate_zeros()
         
         # Ask user if want to save the data for next runs
         if ask_yes_no("Do you want to cache this data?") == 'Y':
@@ -193,7 +192,7 @@ if __name__ == '__main__':
         os.makedirs(f'images/{dimension}/', exist_ok=True)
 
         # Print knn matrix
-        plt.figure(figsize=(7, 7))
+        plt.figure(figsize=(7, 7), dpi=300)
         plt.spy(knn_matrix, markersize=5)
         plt.ylabel("Users", fontsize=18)
         plt.savefig(f'images/{dimension}/knn_matrix')
