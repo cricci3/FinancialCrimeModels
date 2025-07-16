@@ -2,6 +2,8 @@ from functions.preprocess import *
 from functions.SQUIC_functions import *
 
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use(['science','no-latex'])
 from matplotlib.lines import Line2D  # for custom legend
 import seaborn as sns
 
