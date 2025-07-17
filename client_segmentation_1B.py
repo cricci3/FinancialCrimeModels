@@ -1,6 +1,6 @@
-from functions.internal import load_dataset_1B, normalization, extract_timeseries
+from functions.internal import load_dataset_1B, normalization
 from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
-from functions.clustering_functions import clustering_optimal_number, modularity_density, plot_PDens_Q
+from functions.clustering_functions import clustering_optimal_number, modularity_density
 import matplotlib.pyplot as plt
 import json
 from scipy import sparse
@@ -8,6 +8,7 @@ from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 import numpy as np
 import os
+from functions.plots import plot_timeseries, plot_knn, plot_PDens_Q
 
 
 def show_df(Y):
@@ -97,16 +98,8 @@ if __name__ == '__main__':
             # Average number of non-zeros per row
             nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
             print("nnz per row:", round(nnz_per_row, 2))
-
             print("Is symmetric:", check_symmetric_sparse(knn_matrix))
 
-            # Print knn matrix
-            # plt.figure(figsize=(7, 7))
-            # plt.spy(knn_matrix, markersize=5)
-            # plt.ylabel("Users", fontsize=18)
-            # plt.title("KNN")
-            # plt.show()
-            
             # Load pre-saved account_properties
             with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
                 account_prop = json.load(f)
@@ -123,53 +116,17 @@ if __name__ == '__main__':
     else: # Normal run
         Y, name, dimension, account_prop = load_dataset_1B()
 
-        extract_timeseries(Y, name)
+        plot_timeseries(Y, name)
 
         Y = Y.T.values  # Convert to (users, days)
 
         show_df(Y)
 
-        # if ask_yes_no("Do you want to reorder data?") == 'Y':
-        #     # ---- delta
-        #     # Compute delta: last day - first day
-        #     delta = Y[:, -1] - Y[:, 0]  # shape (n_users,)
-
-        #     # Get sort order (descending: most positive trend first)
-        #     sort_indices = np.argsort(-delta)
-
-        #     # Reorder the rows of Y based on trend
-        #     Y = Y[sort_indices]
-
-        #     show_df(Y)
 
         Y_norm = normalization(Y, name)
-        extract_timeseries(Y_norm, name, type_df='norm')
+        plot_timeseries(Y_norm, name, type_df='norm')
 
         show_df(Y_norm)
-
-        # n_users, n_days = Y.shape
-
-        # # Create labels (optional: you can customize these)
-        # user_labels = [f"User_{i}" for i in range(n_users)]
-        # day_labels = [f"{j}" for j in range(n_days)]
-
-        # # Create the DataFrame
-        # df = pd.DataFrame(Y, index=user_labels, columns=day_labels)
-
-        # Y_norm2 = prepare_timeseries(df)
-
-        # print(f"shape of Y_norm2 = {Y_norm2.shape}")
-
-        # plt.figure(figsize=(7, 7))
-
-        # for user in Y_norm2.index:
-        #     plt.plot(Y_norm2.columns, Y_norm2.loc[user], label=user, alpha=0.6)
-
-        # plt.xlabel("Days", fontsize=16)
-        # plt.ylabel("Balance", fontsize=16)
-        # plt.tight_layout()
-        # plt.show()
-
         print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
 
         std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
@@ -190,8 +147,6 @@ if __name__ == '__main__':
         nbrs.fit(Y_norm)
         knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
 
-        # knn_matrix = knn_matrix.multiply(knn_matrix.T)
-
         print("Shape KNN:", knn_matrix.shape)
         print("nnz KNN:", knn_matrix.nnz)
 
@@ -200,12 +155,6 @@ if __name__ == '__main__':
         print("nnz per row:", round(nnz_per_row, 2))
         print("Is symmetric:", check_symmetric_sparse(knn_matrix))
 
-        # Print knn matrix
-        plt.figure(figsize=(7, 7))
-        plt.spy(knn_matrix, markersize=5)
-        plt.ylabel("Users", fontsize=18)
-        plt.title("KNN")
-        plt.show()
         
         # Ask user if want to save the data for next runs
         if ask_yes_no("Do you want to cache this data?") == 'Y':
@@ -238,7 +187,6 @@ if __name__ == '__main__':
             plt.figure(figsize=(7, 7))
             plt.spy(knn_matrix, markersize=5)
             plt.ylabel("Users", fontsize=18)
-            plt.title("KNN")
             plt.show()
         else:
             printMatrix = False
@@ -247,6 +195,9 @@ if __name__ == '__main__':
             save = True
         else:
             save = False
+        
+        if printMatrix:
+            plot_knn(knn_matrix, dimension, save)
         
         squic_method = 'squic-fit-matrix'
         results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save)

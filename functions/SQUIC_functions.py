@@ -10,6 +10,7 @@ import scienceplots
 plt.style.use(['science'])
 import os
 from functions.clustering_functions import study_CC
+from functions.plots import print_covariance_matrix
 
 
 '''
@@ -212,27 +213,6 @@ def check_symmetric_sparse(X):
         return False
 
 
-def print_matrix(X, show=False, save=False, path=None, file_name=None):
-    '''
-    Function to print adjaceny matrix
-    '''
-    plt.figure(figsize=(7, 7))
-    plt.spy(X, markersize=5)
-    # plt.xlabel("Users", fontsize=18)
-    plt.ylabel("Users", fontsize=18)
-
-    plt.tick_params(axis='x', labelsize=18)
-    plt.tick_params(axis='y', labelsize=18)  
-
-    if save:
-        # if path does not exists, create it
-        os.makedirs(path, exist_ok=True)
-        plt.savefig(f"{path}/{file_name}")
-    
-    if show:
-        plt.show()
-
-
 def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None, lambdas="no-bias"):
     lambdas = read_lambdas(name, dimension, lambdas)
 
@@ -253,7 +233,7 @@ def squic_computation(Y_norm, name, dimension, printMatrix=False, save=False, pa
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_covariance_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -282,7 +262,7 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_covariance_matrix(theta_dict[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(theta_dict[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -318,7 +298,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_covariance_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -355,7 +335,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
+            print_covariance_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","_")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")
@@ -366,110 +346,3 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
             study_CC(W_matrices[rho])
 
     return W_matrices
-
-
-# def squic_fit(Y, lambda_val, eta, kappa=0, tau=0):
-#     '''
-#     Dense implementation of SQUIC-Fit
-
-#     Return:
-#     - X_final: adjacency matrix
-#     - end_time: computation time
-#     '''
-#     start_time = time.time()
-#     # First squic call -> Identify negative off-diagonal elements (Equation 9)
-#     X1, _, _, _, _, _  = squic.run(Y, lambda_val)
-#     X1 = X1.todense()
-    
-#     # Step 2: Build Graphical Bias G (Equation 10)
-#     G = np.zeros_like(X1)
-#     G[np.triu_indices_from(G, k=1)] = (X1[np.triu_indices_from(X1, k=1)] < -kappa).astype(int)
-#     G += G.T  # Make symmetric
-    
-#     # Step 3: Build Regularization Parameter Matrix Λ (Equation 12)
-#     #Lambda = np.full_like(Theta1, lambda_val) 
-#     Lambda = np.zeros_like(X1)
-#     # Apply eta where G is nonzero
-#     Lambda[G != 0] = eta
-    
-#     # Step 4: Second SQUIC estimation with bias (Equation 11)
-#     X2, _, _, _, _, _ = squic.run(Y, lambda_val, M=Lambda)
-#     X2 = X2.todense()
-    
-#     # Step 5: Construct the final M-matrix (Equation 13)
-#     X_final = np.zeros_like(X2)
-    
-#     # Get diagonal
-#     diag = np.diag(X2)
-    
-#     # Identify negative off-diagonal elements
-#     n = X2.shape[0]
-#     for i in range(n):
-#         for j in range(i+1, n):
-#             if X2[i, j] < -tau:
-#                 X_final[i, j] = X2[i, j]
-#                 X_final[j, i] = X2[j, i]
-    
-#     # Restore diagonal
-#     np.fill_diagonal(X_final, diag)
-#     end_time = time.time() - start_time
-#     end_time = round(end_time, 2)
-    
-#     return X_final, end_time
-
-
-# def squic_fit_matrix(Y, l, bias_matrix, tau=0):
-#     '''
-#     Dense implementation of function to pass a matrix as bias to SQUIC_Fit
-
-#     Return:
-#     - X_final: adjacency matrix
-#     - end_time: computation time
-#     '''
-#     start_time = time.time()
-
-#     M_sparse = csr_matrix(bias_matrix)
-
-#     # Step 4: Second SQUIC estimation with bias (Equation 11)
-#     X2, _, _, _, _, _ = squic.run(Y, l, M=M_sparse)
-#     X2 = X2.todense()
-    
-#     # Step 5: Construct the final M-matrix (Equation 13)
-#     X_final = np.zeros_like(X2)
-    
-#     # Get diagonal
-#     diag = np.diag(X2)
-    
-#     # Identify negative off-diagonal elements
-#     n = X2.shape[0]
-#     for i in range(n):
-#         for j in range(i+1, n):
-#             if X2[i, j] < -tau:
-#                 X_final[i, j] = X2[i, j]
-#                 X_final[j, i] = X2[j, i]
-    
-#     # Restore diagonal
-#     np.fill_diagonal(X_final, diag)
-    
-#     end_time = round(time.time() - start_time, 2)
-    
-#     return X_final, end_time
-
-
-# def count_nnz(X, rows):
-#     '''
-#     Function to count nnz on a matrix
-    
-#     Returns:
-#     - nnz: number of non-zero elements
-#     - nnz_r: number of non-zero elements per row
-#     '''
-#     nnz = X.nnz
-#     nnz_r = nnz / rows
-#     return nnz, round(nnz_r, 2)
-
-
-# def is_symmetric(X):
-#     if sp.sparse.issparse(X):
-#         X = X.toarray()
-#     return np.allclose(X, X.T)

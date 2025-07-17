@@ -1,6 +1,6 @@
-from functions.internal import load_dataset_1A, normalization, extract_timeseries
+from functions.internal import load_dataset_1A, normalization
 from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
-from functions.clustering_functions import clustering_2_communities, ARI_fscore, plot_ARI_f1, study_CC
+from functions.clustering_functions import clustering_2_communities, ARI_fscore, study_CC
 import matplotlib.pyplot as plt
 import scienceplots
 plt.style.use(['science'])
@@ -10,7 +10,7 @@ from sklearn.neighbors import NearestNeighbors
 import pandas as pd
 import numpy as np
 import os
-
+from functions.plots import plot_timeseries, plot_knn, plot_ARI_f1
 
 def ask_yes_no(prompt, default=None):
     """
@@ -128,7 +128,7 @@ if __name__ == '__main__':
         Y, name, dimension, account_prop = load_dataset_1A()
 
         # visualize timeseries
-        extract_timeseries(Y, name, dimension)
+        plot_timeseries(Y, name, dimension)
 
         print(Y)
 
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         Y_norm = normalization(Y, name)
 
         # visualize timeseries with normalized data
-        extract_timeseries(Y_norm, name, dimension, type_df='norm')
+        plot_timeseries(Y_norm, name, dimension, type_df='norm')
 
         print(Y_norm)
 
@@ -191,12 +191,7 @@ if __name__ == '__main__':
 
         os.makedirs(f'images/{dimension}/', exist_ok=True)
 
-        # Print knn matrix
-        plt.figure(figsize=(7, 7), dpi=300)
-        plt.spy(knn_matrix, markersize=5)
-        plt.ylabel("Users", fontsize=18)
-        plt.savefig(f'images/{dimension}/knn_matrix')
-        plt.show()
+        plot_knn(knn_matrix, dimension)
 
         if ask_yes_no("Do you want to study the CC of KNN matrix and SQUIC-Fit results?") == 'Y':
             # A plot showing the top 5 components of KNN matrix and SQUIC-Fit results will be show

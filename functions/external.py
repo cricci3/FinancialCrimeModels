@@ -55,20 +55,27 @@ def linear_DA(data_train, labels_train, data_test, labels_test, Theta):
 
     rho = np.zeros((n_test, K))
 
+    print(" entering loop")
     for k in range(1, K+1):
+        print(f"    loop n {k}")
+        print("     sum")
         # prior probability for class k
         prior = np.sum(labels_train == k) / n_train
         
+        print("     mean")
         # sample mean for class k
         mu_k = np.mean(data_train[:, labels_train == k], axis=1)  # mean along samples
 
+        print("     tile")
         # Construct an array by repeating A the number of times given by reps.
         mu_matrix = np.tile(mu_k[:, np.newaxis], (1, n_test))
 
+        print("     adjust")
         # adjusted data
         adjusted_data = data_test - 0.5 * mu_matrix
 
         # lda score
+        print("     lda score")
         lda_score = np.einsum('ij,ji->i', adjusted_data.T, Theta @ mu_matrix) + np.log(prior)
         rho[:, k-1] = lda_score
 
@@ -92,6 +99,7 @@ def prepare_LDA(Theta_mtrx, account_prop, target='fraud'):
 
     labels = []
 
+    print("Taking labels of users")
     if target == 'class':
         for user in account_prop.items():
             if user[-1][target] == 'B':
@@ -103,6 +111,7 @@ def prepare_LDA(Theta_mtrx, account_prop, target='fraud'):
             labels.append(user[-1][target])
 
     # Convert to array
+    print("Encorder Labels")
     labels = np.array(labels)
     le = LabelEncoder()
     
@@ -110,9 +119,12 @@ def prepare_LDA(Theta_mtrx, account_prop, target='fraud'):
 
     for rho, Theta in Theta_mtrx.items():
         ext_metrics[rho] = {}
-        user_features = Theta.toarray()
+        # user_features = Theta.toarray()
+        user_features = Theta
+
 
         # Split into train/test
+        print(f"for rho {rho} train test split")
         data_train, data_test, labels_train, labels_test = train_test_split(
             user_features,
             labels_encoded,
@@ -125,6 +137,7 @@ def prepare_LDA(Theta_mtrx, account_prop, target='fraud'):
         data_train = data_train.T  # (features x n_train_samples)
         data_test = data_test.T  
 
+        print(f"for rho {rho} LDA")
         ext_metrics[rho] = linear_DA(data_train, labels_train, data_test, labels_test, Theta)
     
     return ext_metrics

@@ -21,6 +21,7 @@ plt.style.use(['science'])
 from functions.spectral_clustering import find_optimal_clusters, compute_spectral_clustering, compute_normalized_laplacian, compute_eigenvalues_eigenvectors
 import igraph as ig
 import leidenalg as la
+from functions.plots import plot_CC
 
 
 def labels_to_partition(labels):
@@ -661,116 +662,6 @@ def plot_Q_f1(metrics_dict):
     plt.show()
 
 
-def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
-    methods = [squic_method]
-    colors = {
-        squic_method: 'tab:orange'
-    }
-
-    fig, ax1 = plt.subplots(figsize=(6, 6))
-    ax2 = ax1.twinx()
-
-    for method in methods:
-
-        rhos = sorted(metrics_dict[method].keys())
-        ARI_values = []
-        F1_values = []
-        valid_rhos = []
-
-        for rho in rhos:
-            metrics = metrics_dict[method][rho].get('spectral', {})
-            ari = metrics.get('ARI', None)
-            f1 = metrics.get('f1', None)
-            ARI_values.append(ari)
-            F1_values.append(f1)
-            valid_rhos.append(rho)
-
-        color = colors[method]
-
-        # Modularity Q — dotted line
-        ax1.plot(valid_rhos, ARI_values, linestyle='dashed', marker='o', color='orange', label=f'ARI')
-
-        # F1-score — solid line
-        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
-
-    # Axis labels
-    ax1.set_xlabel("lambda", fontsize=18)
-    ax1.set_ylabel("ARI", color='black', fontsize=18)
-    ax2.set_ylabel("F1 Score", color='black', fontsize=18)
-
-    # Legends
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
-
-    fig.tight_layout()
-    plt.grid(True)
-    if save:
-        # if path does not exists, create it
-        os.makedirs(f'images/{dimension}', exist_ok=True)
-        plt.savefig(f"images/{dimension}/ARI_F1_{squic_method}")
-        print(f"Plot saved in images/{dimension}/ARI_F1_{squic_method}")
-    plt.show()
-
-
-def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
-
-    colors = {
-        'louvain':'green',
-        'leiden':'orange',
-        'spectral':'cornflowerblue',
-        'dbscan':'mediumorchid'
-    }
-
-    fig, ax1 = plt.subplots(figsize=(7, 7))
-    ax2 = ax1.twinx()
-
-    # Get the list of methods from the first rho entry
-    first_rho = next(iter(metrics_dict))
-    clustering_methods = metrics_dict[first_rho].keys()
-
-    for method in clustering_methods:
-        PDensity_values = []
-        Q_values = []
-        valid_rhos = []
-
-        for rho in sorted(metrics_dict.keys()):
-            method_metrics = metrics_dict[rho].get(method, {})
-            pdens = method_metrics.get('p_density', None)
-            q = method_metrics.get('modularity', None)
-
-            if pdens is not None and q is not None:
-                PDensity_values.append(pdens)
-                Q_values.append(q)
-                valid_rhos.append(rho)
-
-        if valid_rhos:
-            color = colors.get(method, 'black')
-            ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
-            ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
-
-    ax1.set_xlabel("rho")
-    ax1.set_ylabel("Modularity Q", color='black')
-    ax2.set_ylabel("Partition Density", color='black')
-
-    ax1.set_xticks(valid_rhos)
-    ax1.set_xticklabels([str(r) for r in valid_rhos], rotation=45)
-
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
-
-    fig.tight_layout()
-    plt.grid(True)
-
-    if save:
-        os.makedirs(f'images/{name}/{dimension}', exist_ok=True)
-        plt.savefig(f"images/{name}/{dimension}/{squic_method}-PDens_Q.png")
-        print(f"Plot saved in images/{dimension} image {squic_method}-PDens_Q.png")
-
-    plt.show()
-
-
 def study_CC(matrix):
     G = nx.from_scipy_sparse_array(matrix)
     connected_components = list(nx.connected_components(G))
@@ -808,13 +699,4 @@ def study_CC(matrix):
             group_coords[group][0].append(row)
             group_coords[group][1].append(col)
 
-    plt.figure(figsize=(7, 7))
-    for group_id, (rows, cols) in group_coords.items():
-        plt.scatter(cols, rows, s=0.5, color=colors[group_id], label=f'Component {group_id}' if group_id >= 0 else 'Other', alpha=0.6)
-
-    plt.xlabel("Users", fontsize=14)
-    plt.ylabel("Users", fontsize=14)
-    plt.legend(markerscale=6, fontsize=10, loc='upper right')
-    plt.gca().invert_yaxis()  # Optional: to match spy() orientation
-    plt.tight_layout()
-    plt.show()
+    plot_CC(group_coords, colors)

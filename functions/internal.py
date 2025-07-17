@@ -4,7 +4,7 @@ from functions.SQUIC_functions import *
 import matplotlib.pyplot as plt
 import scienceplots
 plt.style.use(['science','no-latex'])
-from matplotlib.lines import Line2D  # for custom legend
+from matplotlib.lines import Line2D
 import seaborn as sns
 
 import json
@@ -86,81 +86,6 @@ def load_dataset_1B():
     return df, name, dimension, account_prop
 
 
-def extract_timeseries(df, name, dimension=None, type_df=None):
-    # Plot the balance evolution for all users (columns) as separate lines
-    # plt.figure(figsize=(15,10), dpi= 300)
-    plt.figure(figsize=(7,7))
-
-    if type_df == 'norm':
-        df = df.T
-
-        if name == 'AMLSIM':
-            n_days, n_users = df.shape
-            # Create labels
-            user_labels = [f"User_{i}" for i in range(n_users)]
-            day_labels = list(range(n_days))
-
-            # Create the DataFrame
-            df = pd.DataFrame(df, index=day_labels, columns=user_labels)
-
-    if name == 'PAYSIM' and type_df != 'norm':
-        colors = {'Clients': 'mediumseagreen', 
-              'Bank': 'crimson', 
-              'Merchants': 'darkturquoise'}
-        
-        bank_dimension = ['100', '1K', '10K']
-
-        # Plot each column (account balance) as a line
-        for user in df.columns:
-            if user.startswith('C'):
-                color = colors['Clients']
-                plt.plot(df.index, df[user], color=color, alpha=0.6)
-            elif user.startswith('B'):
-                color = colors['Bank']
-                if dimension in bank_dimension:
-                    plt.plot(df.index, df[user], color=color, alpha=0.6)
-            elif user.startswith('M'):
-                color = colors['Merchants']
-                plt.plot(df.index, df[user], color=color, alpha=0.6)
-            else:
-                plt.plot(df.index, df[user], alpha=0.6)
-            # plt.plot(df.index, df[user], color=color, alpha=0.6)
-        
-        # plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
-    
-        if dimension in bank_dimension:
-            legend_elements = [
-                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
-                Line2D([0], [0], color=colors.get('Bank'), lw=4, label='Bank'),
-                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
-            ]
-        else:
-            legend_elements = [
-                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
-                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
-            ]
-
-        if type_df != 'norm':
-            plt.legend(handles=legend_elements, fontsize=16)
-    
-    else:
-        # Plot each column (account balance) as a line
-        for user in df.columns:
-            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
-
-    # Add title and labels
-    plt.xlabel("Days", fontsize=22)
-    plt.ylabel("Balance", fontsize=22)
-
-    # Rotate x-axis labels for better visibility
-    plt.tick_params(axis='x', labelsize=22)
-    plt.tick_params(axis='y', labelsize=22)
-
-    # Display the plot
-    plt.tight_layout()
-    plt.show()
-
-
 def prepare_timeseries(df):
     # Check if float
     Y = df.astype(float)
@@ -221,20 +146,6 @@ def normalization(df, name):
         return Y
 
 
-def print_transaction_matrix(matrix):
-    mask = (matrix == 0) # cover all zeros
-
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(matrix, cmap='YlGnBu', fmt=".2f", cbar=True, mask=mask,
-                linewidths=0.5, linecolor='white')
-
-    plt.xlabel("Receiver Account", fontsize=22)
-    plt.ylabel("Sender Account", fontsize=22)
-    plt.show()
-
-    return
-
-
 def visualize_metrics(metrics):
     # for every rho print RCut, NCut, Modularity and NCC
     for l, results in metrics.items():
@@ -285,31 +196,3 @@ def extract_results(metrics):
                     lists_dict[f'{algorithm}_{metric}'].append(None)
     
     return lists_dict
-    
-
-def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbscan']):
-    # Create the plot
-    plt.figure(figsize=(6, 6))
-
-    colors = ['steelblue', 'gold', 'indianred']
-    dot = ['o-', 's-', '^-']
-
-    if methods == ['louvain', 'spectral']:
-        for i, method in enumerate(methods): 
-            plt.plot(results['rho_values'], results[f'{method}_{metrics}'], dot[i], label=f'{method}', color=colors[i])
-        
-        plt.yscale('log')
-    
-    else:
-        plt.plot(results['rho_values'], results[f'louvain_{metrics}'], 'o-', label='Louvain', color=colors[0])
-        plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color=colors[1])
-        plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color=colors[2])
-
-    plt.xlabel('Reg. Parameter (λ)', fontsize=22)
-    plt.ylabel(ylabel, fontsize=22)
-    plt.xscale('log')
-
-    plt.tick_params(axis='x', labelsize=22)
-    plt.tick_params(axis='y', labelsize=22)
-    plt.legend()
-    plt.show()
