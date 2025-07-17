@@ -83,6 +83,8 @@ def plot_knn(knn_matrix, dimension, save=False):
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
     plt.ylabel("Users", fontsize=18)
+    plt.tick_params(axis='x', labelsize=18)
+    plt.tick_params(axis='y', labelsize=18)
     if save:
         plt.savefig(f'images/{dimension}/knn_matrix')
     plt.show()
@@ -237,6 +239,8 @@ def plot_CC(group_coords, colors):
 
     plt.xlabel("Users", fontsize=18)
     plt.ylabel("Users", fontsize=18)
+    plt.tick_params(axis='x', labelsize=18)
+    plt.tick_params(axis='y', labelsize=18)
     plt.legend(markerscale=6, fontsize=12, loc='upper right')
     plt.gca().invert_yaxis()
     plt.tight_layout()
