@@ -9,42 +9,7 @@ import pandas as pd
 import numpy as np
 import os
 from functions.plots import plot_timeseries, plot_knn, plot_PDens_Q
-
-
-def show_df(Y):
-    n_users, n_days = Y.shape
-
-    # Create labels
-    day_labels = [f"Day {i}" for i in range(n_days)]
-    user_labels = list(range(n_users))
-
-    # Create the DataFrame
-    df = pd.DataFrame(Y, index=user_labels, columns=day_labels)
-
-    print(df)
-
-
-def ask_yes_no(prompt, default=None):
-    """
-    Ask the user a yes/no question with optional default.
-    """
-    while True:
-        answer = input(f"{prompt} (Y/N) ").strip().upper()
-        if not answer and default:
-            return default
-        if answer in ['Y', 'N']:
-            return answer
-        print("Please enter 'Y' or 'N'.")
-
-
-def ask_input(prompt, default=None):
-    """
-    Ask the user for input with optional default.
-    """
-    answer = input(f"{prompt} ").strip()
-    if not answer and default is not None:
-        return default
-    return answer
+from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic, show_df, ask_input, ask_yes_no
 
 
 if __name__ == '__main__':
@@ -64,158 +29,23 @@ if __name__ == '__main__':
       "Y" when prompted to cache it.
     '''
     user_input = ask_yes_no("\nDo you want to load data?")
+    name = 'AMLSIM'
 
     if user_input == 'Y':
-        dimension = ask_input("Which dimension (100/1K/10K/100K/1M)?").upper()
-        path = 'amlsim_data_saved'
-
-        try:
-            # Load pre-saved Y_norm
-            chunk_size = 10000
-            chunks = []
-
-            for chunk in pd.read_csv(f'{path}/YNorm_{dimension}.csv', chunksize=chunk_size):
-                chunks.append(chunk)
-
-            Y_norm = pd.concat(chunks, ignore_index=True)
-
-            print(f"Head of Y_norm df:")
-            print(Y_norm.head())
-            print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
-
-            std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
-
-            print("Mean std per row (should be 1):", std_dev)
-            print("Max:", np.max(Y_norm))
-            print("Min:", np.min(Y_norm))
-
-            # Load pre-saved knn_matrix
-            knn_matrix = sparse.load_npz(f'{path}/knn_matrix_{dimension}.npz')
-
-            print("Shape KNN:", knn_matrix.shape)
-            print("nnz KNN:", knn_matrix.nnz)
-
-            # Average number of non-zeros per row
-            nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
-            print("nnz per row:", round(nnz_per_row, 2))
-            print("Is symmetric:", check_symmetric_sparse(knn_matrix))
-
-            # Load pre-saved account_properties
-            with open(f'{path}/account_prop_{dimension}.json', 'r') as f:
-                account_prop = json.load(f)
-
-            account_prop = {int(k): v for k, v in account_prop.items()}
-            
-            name = 'AMLSIM'
-
-        except Exception as e:
-            # If data are not present
-            print(f"Error loading data: {e}")
-            exit(1)
-        
+        Y_norm, knn_matrix, account_prop, dimension = load_presaved_data(name)
+    
     else: # Normal run
-        Y, name, dimension, account_prop = load_dataset_1B()
-
-        plot_timeseries(Y, name)
-
-        Y = Y.T.values  # Convert to (users, days)
-
-        show_df(Y)
-
-
-        Y_norm = normalization(Y, name)
-        plot_timeseries(Y_norm, name, type_df='norm')
-
-        show_df(Y_norm)
-        print(f"\ndimension of YNorm loaded: {Y_norm.shape}")
-
-        std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
-
-        print("Mean std per row (should be 1):", std_dev)
-        print("Max:", np.max(Y_norm))
-        print("Min:", np.min(Y_norm))
-
-        n_neigs = {
-            '100' : 10,
-            '1K' : 5,
-            '10K' : 5,
-            '100K' : 4,
-            '1M' : 3
-        }
-
-        nbrs = NearestNeighbors(n_neighbors=n_neigs[dimension], metric='euclidean', n_jobs=-1)
-        nbrs.fit(Y_norm)
-        knn_matrix = nbrs.kneighbors_graph(Y_norm, mode='connectivity')
-
-        print("Shape KNN:", knn_matrix.shape)
-        print("nnz KNN:", knn_matrix.nnz)
-
-        # Average number of non-zeros per row
-        nnz_per_row = knn_matrix.nnz / knn_matrix.shape[0]
-        print("nnz per row:", round(nnz_per_row, 2))
-        print("Is symmetric:", check_symmetric_sparse(knn_matrix))
-
-        
-        # Ask user if want to save the data for next runs
-        if ask_yes_no("Do you want to cache this data?") == 'Y':
-            path = 'amlsim_data_saved'
-
-            # if path does not exists, create it
-            os.makedirs(path, exist_ok=True)
-            
-            # Save Y_norm as CSV
-            pd.DataFrame(Y_norm).to_csv(f'{path}/YNorm_{dimension}.csv', index=False)
-            
-            # Save account_prop as json
-            with open(f'{path}/account_prop_{dimension}.json', 'w') as f:
-                json.dump(account_prop, f)
-            
-            # Save knn_matrix as npz
-            sparse.save_npz(f'{path}/knn_matrix_{dimension}.npz', knn_matrix)
-
+        Y_norm, knn_matrix, account_prop, dimension = normal_run(name)
+    
     results_squic = {}
 
     # Run SQUIC_fit
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
+        results_squic, squic_method, save = run_squic_fit(Y_norm, knn_matrix, results_squic, name, dimension)
 
-        os.makedirs(f'images/{dimension}/', exist_ok=True)
-
-        if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
-            printMatrix = True
-
-            # Print knn matrix
-            plt.figure(figsize=(7, 7))
-            plt.spy(knn_matrix, markersize=5)
-            plt.ylabel("Users", fontsize=18)
-            plt.show()
-        else:
-            printMatrix = False
-
-        if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
-            save = True
-        else:
-            save = False
-        
-        if printMatrix:
-            plot_knn(knn_matrix, dimension, save)
-        
-        squic_method = 'squic-fit-matrix'
-        results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, printMatrix, save)
-    
     else:
-        if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
-            printMatrix = True
-        else:
-            printMatrix = False
-
-        if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
-            save = True
-        else:
-            save = False
-
-        squic_method = 'squic-fit'
-        results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
-
+        results_squic, squic_method, save = run_squic(Y_norm, results_squic, name, dimension)
+        
     # Results
     dict_cluster = clustering_optimal_number(dimension, results_squic, plot=False)
 
