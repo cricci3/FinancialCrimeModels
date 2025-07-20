@@ -79,14 +79,16 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
     return
 
 
-def plot_knn(knn_matrix, dimension, save=False):
+def plot_knn(knn_matrix, name, dimension, save=False):
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
     plt.ylabel("Users", fontsize=18)
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18)
     if save:
-        plt.savefig(f'images/{dimension}/knn_matrix')
+        dir = f'images/{name}/{dimension}'
+        os.makedirs(dir, exist_ok=True)
+        plt.savefig(f'{dir}/knn_matrix')
     plt.show()
     return
 
@@ -163,9 +165,9 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
     plt.grid(True)
     if save:
         # if path does not exists, create it
-        os.makedirs(f'images/{dimension}', exist_ok=True)
-        plt.savefig(f"images/{dimension}/ARI_F1_{squic_method}")
-        print(f"Plot saved in images/{dimension}/ARI_F1_{squic_method}")
+        os.makedirs(f'images/PAYSIM/{dimension}', exist_ok=True)
+        plt.savefig(f"images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
+        print(f"Plot saved in images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
     plt.show()
     return
 
@@ -224,9 +226,9 @@ def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
     plt.grid(True)
 
     if save:
-        os.makedirs(f'images/{name}/{dimension}', exist_ok=True)
-        plt.savefig(f"images/{name}/{dimension}/{squic_method}-PDens_Q.png")
-        print(f"Plot saved in images/{dimension} image {squic_method}-PDens_Q.png")
+        os.makedirs(f'images/AMLSIM/{name}/{dimension}', exist_ok=True)
+        plt.savefig(f"images/AMLSIM/{name}/{dimension}/{squic_method}-PDens_Q.png")
+        print(f"Plot saved in images/AMLSIM/{dimension} image {squic_method}-PDens_Q.png")
 
     plt.show()
     return
