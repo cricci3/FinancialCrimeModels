@@ -37,7 +37,7 @@ def compute_normalized_laplacian(adj):
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=12, max_retries=3, print_info=False):
+def compute_eigenvalues_eigenvectors(L_norm, name=None, dimension=None, k=12, max_retries=3, print_info=False):
     """
     Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
     Retries with adjusted parameters if convergence is not reached.
