@@ -32,7 +32,7 @@ def node_to_community(partition):
     return community_mapping
 
 
-def visualize_graph_internal(W_matrices, squic_method, dict_partition, account_prop, name, color_by='community', color_list=COLOR_LIST):
+def visualize_graph_internal(W_matrices, squic_method, dict_partition, account_prop, name, color_by='community', color_list=COLOR_LIST, show_id=True):
 
     widget_dict = {
         rho: {
@@ -115,18 +115,23 @@ def visualize_graph_internal(W_matrices, squic_method, dict_partition, account_p
                     ["M", "#FF9999"],  # Red/Pink
                 ]
 
+            if show_id:
+                point_label = 'class' # [id, class or fraud]
+            else:
+                point_label = None # to produce a graph without labels
+
             # COSMOGRAPH docs: https://colab.research.google.com/drive/1Rt8rmmeMuWyFjEqae2DdJ3NYymtjC9cT#scrollTo=IZUK7ioL1xKr
             widget = cosmo(
                 points=points,
                 links=links,
-                point_id_by='id', # id
+                point_id_by='id',
                 link_source_by='source',
                 link_target_by='target',
                 link_width_by='weight',
                 link_color='#E3E3E3',
                 link_greyout_opacity=0.1,
                 point_color_by=color_by,
-                point_label_by='class', # [id, class or fraud]
+                point_label_by=point_label,
                 point_size_by='degree',
                 point_color_strategy='map',
                 point_color_by_map=color_list,
