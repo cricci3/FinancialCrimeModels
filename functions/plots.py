@@ -82,6 +82,7 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
 def plot_knn(knn_matrix, name, dimension, save=False):
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
+    plt.xlabel("Users", fontsize=18)
     plt.ylabel("Users", fontsize=18)
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18)
@@ -100,6 +101,7 @@ def print_covariance_matrix(X, show=False, save=False, path=None, file_name=None
     plt.figure(figsize=(7, 7))
     plt.spy(X, markersize=5)
     # plt.xlabel("Users", fontsize=18)
+    plt.xlabel("Users", fontsize=18)
     plt.ylabel("Users", fontsize=18)
 
     plt.tick_params(axis='x', labelsize=18)
