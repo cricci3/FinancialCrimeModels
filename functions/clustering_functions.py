@@ -166,108 +166,110 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
                 'min_samples' : 3}
     }
 
-    for technique, matrices in results_squic.items():
-        for rho, X in matrices.items():
-            # Ensure all off-diagonal entries are positive
-            X = np.abs(X) 
+    squic_technique = next(iter(results_squic))
 
-            # Ensure diagonal entries are zero
-            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-            # Create a graph from matrix X
-            G = nx.from_scipy_sparse_array(X)
+    for rho, X in results_squic[squic_technique].items():
+        # Ensure all off-diagonal entries are positive
+        X = np.abs(X) 
 
-            connected = nx.is_connected(G)
-            print(f"Is G connected for l={rho}? {connected}")
-            if not connected:
-                connected_components = nx.connected_components(G)
-                component_sizes = [len(c) for c in connected_components]
-                print(f"# CC : {len(component_sizes)}")
+        # Ensure diagonal entries are zero
+        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-            # Louvain
+        # Create a graph from matrix X
+        G = nx.from_scipy_sparse_array(X)
+
+        connected = nx.is_connected(G)
+        print(f"Is G connected for l={rho}? {connected}")
+        if not connected:
+            connected_components = nx.connected_components(G)
+            component_sizes = [len(c) for c in connected_components]
+            print(f"# CC : {len(component_sizes)}")
+
+        # Louvain
+        start = time.time()
+        partition_louvain = community.louvain_communities(G)
+        end_louv = time.time() - start
+        dict_cluster['louvain'][rho] = partition_louvain
+
+        # Leiden
+        start = time.time()
+        G_igraph = ig.Graph.from_networkx(G)
+        partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
+        end_leiden = time.time() - start
+        dict_cluster['leiden'][rho] = partition_leiden
+
+        if dbscan_params_dict.get(dimension):
+            dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
+                            min_samples=dbscan_params_dict[dimension]['min_samples'],
+                            metric='cosine')
+        else:
+            # DBSCAN with multiple params
+            best_Q = -1
+            best_params = None
+
+            eps_range = np.linspace(0.1, 2.0, 20)
+            min_samples_range = range(3, 10)
+
+            print(f"Trying different params for DBSCAN for lambda = {rho}")
             start = time.time()
-            partition_louvain = community.louvain_communities(G)
-            end_louv = time.time() - start
-            dict_cluster['louvain'][rho] = partition_louvain
+            for eps in tqdm(eps_range):
+                for min_samples in min_samples_range:
+                    dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
+                    labels = dbscan.fit_predict(X)
+                    
+                    # Ignore if all points are noise (-1) or single cluster
+                    if len(set(labels)) <= 1 or (set(labels) == {-1}):
+                        continue
 
-            # Leiden
-            start = time.time()
-            G_igraph = ig.Graph.from_networkx(G)
-            partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
-            end_leiden = time.time() - start
-            dict_cluster['leiden'][rho] = partition_leiden
+                    partition_dbscan = labels_to_partition(labels)
 
-            if dbscan_params_dict.get(dimension):
-                dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
-                                min_samples=dbscan_params_dict[dimension]['min_samples'],
-                                metric='cosine')
+                    # compute Q to evaluate
+                    db_Q = community.modularity(G, partition_dbscan)
+                    if db_Q > best_Q:
+                        best_Q = db_Q
+                        best_params = (eps, min_samples)
+
+            if best_params is not None:
+                print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
+                dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
             else:
-                # DBSCAN with multiple params
-                best_Q = -1
-                best_params = None
+                print("No suitable DBSCAN parameters found! DBSCAN with default params")
+            dbscan = DBSCAN()
+            
+        labels_dbscan = dbscan.fit_predict(X)
+        end_db = time.time() - start
 
-                eps_range = np.linspace(0.1, 2.0, 20)
-                min_samples_range = range(3, 10)
+        # Convert labels to list of sets
+        partition_dbscan = labels_to_partition(labels_dbscan)
+        dict_cluster['dbscan'][rho] = partition_dbscan
 
-                print(f"Trying different params for DBSCAN for lambda = {rho}")
-                start = time.time()
-                for eps in tqdm(eps_range):
-                    for min_samples in min_samples_range:
-                        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine')
-                        labels = dbscan.fit_predict(X)
-                        
-                        # Ignore if all points are noise (-1) or single cluster
-                        if len(set(labels)) <= 1 or (set(labels) == {-1}):
-                            continue
-
-                        partition_dbscan = labels_to_partition(labels)
-
-                        # compute Q to evaluate
-                        db_Q = community.modularity(G, partition_dbscan)
-                        if db_Q > best_Q:
-                            best_Q = db_Q
-                            best_params = (eps, min_samples)
-
-                if best_params is not None:
-                    print(f"For rho {rho} best params found for DBSCAN are {best_params[0]} and {best_params[1]}")
-                    dbscan = DBSCAN(eps=best_params[0], min_samples=best_params[1], metric='cosine')
-                else:
-                    print("No suitable DBSCAN parameters found! DBSCAN with default params")
-                dbscan = DBSCAN()
-                
-            labels_dbscan = dbscan.fit_predict(X)
-            end_db = time.time() - start
-
+        # Spectral Clustering
+        start = time.time()
+        optimal_k, eigenvectors = find_optimal_clusters(G, plot)
+        if eigenvectors is not None:
+            labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
             # Convert labels to list of sets
-            partition_dbscan = labels_to_partition(labels_dbscan)
-            dict_cluster['dbscan'][rho] = partition_dbscan
+            partition_spectral = labels_to_partition(labels_spectral)
 
-            # Spectral Clustering
-            start = time.time()
-            optimal_k, eigenvectors = find_optimal_clusters(G, plot)
-            if eigenvectors is not None:
-                labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
-                # Convert labels to list of sets
-                partition_spectral = labels_to_partition(labels_spectral)
+            dict_cluster['spectral'][rho] = partition_spectral
+        else:
+            dict_cluster['spectral'][rho] = None
 
-                dict_cluster['spectral'][rho] = partition_spectral
-            else:
-                dict_cluster['spectral'][rho] = None
+        end_spec = time.time() - start
 
-            end_spec = time.time() - start
+        if times == True:
+            print(f"For rho {rho}: ")
 
-            if times == True:
-                print(f"For rho {rho}: ")
+            # print(f"Number of louvain cluster is {len(partition_louvain)}")
+            # print(f"Number of leiden cluster is {len(partition_leiden)}")
+            # print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
+            # print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
 
-                # print(f"Number of louvain cluster is {len(partition_louvain)}")
-                # print(f"Number of leiden cluster is {len(partition_leiden)}")
-                # print(f"Number of DBSCAN cluster is {len(partition_dbscan)}")
-                # print(f"Number of Spectral cluster is {len(partition_spectral)}\n")
-
-                print(f"Time for Louvain -> {round(end_louv, 2)} s")
-                print(f"Time for Leiden -> {round(end_leiden, 2)} s")
-                print(f"Time for DBSCAN -> {round(end_db, 2)} s")
-                print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
+            print(f"Time for Louvain -> {round(end_louv, 2)} s")
+            print(f"Time for Leiden -> {round(end_leiden, 2)} s")
+            print(f"Time for DBSCAN -> {round(end_db, 2)} s")
+            print(f"Time for Spectral -> {round(end_spec, 2)} s\n")
     
     return dict_cluster
 
@@ -277,37 +279,37 @@ def clustering_2_communities(results_squic, squic_method, name, dimension):
         squic_method : {}
     }
 
-    for technique, matrices in results_squic.items():
-        for rho, X in matrices.items():
-            # Ensure all off-diagonal entries are positive
-            X = np.abs(X) 
+    # for technique, matrices in results_squic[squic_method].items():
+    for rho, X in results_squic[squic_method].items():
+        # Ensure all off-diagonal entries are positive
+        X = np.abs(X) 
 
-            # Ensure diagonal entries are zero
-            X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
+        # Ensure diagonal entries are zero
+        X.setdiag(0) # SQUIC_Fit ensure that, SQUIC not, so manually turn into 0
 
-            # Create a graph from matrix X
-            G = nx.from_scipy_sparse_array(X)
+        # Create a graph from matrix X
+        G = nx.from_scipy_sparse_array(X)
 
-            print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
+        print(f"\nfor rho {rho} graph is connected: {nx.is_connected(G)}")
 
-            print(f"Computing spectral clustering for rho {rho}...")
-            start = time.time()
+        print(f"Computing spectral clustering for rho {rho}...")
+        start = time.time()
 
-            L_norm = compute_normalized_laplacian(X)
-            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=2)
-            if eigenvectors is not None:
-                labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
-                # Convert labels to list of sets
-                partition_spectral = labels_to_partition(labels_spectral)
+        L_norm = compute_normalized_laplacian(X)
+        _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=2)
+        if eigenvectors is not None:
+            labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
+            # Convert labels to list of sets
+            partition_spectral = labels_to_partition(labels_spectral)
 
-                dict_cluster[technique][rho] = partition_spectral
-            else:
-                print(f"Unable to compute Spectral clustering for rho {rho}")
-                dict_cluster[technique][rho] = None
-            
-            end = time.time() - start
+            dict_cluster[squic_method][rho] = partition_spectral
+        else:
+            print(f"Unable to compute Spectral clustering for rho {rho}")
+            dict_cluster[squic_method][rho] = None
+        
+        end = time.time() - start
 
-            print(f"For rho {rho} takes {round(end, 2)} seconds")
+        print(f"For rho {rho} takes {round(end, 2)} seconds")
     # return dict_cluster, filtered_node_indices
     return dict_cluster
 
