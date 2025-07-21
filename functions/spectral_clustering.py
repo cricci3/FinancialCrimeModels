@@ -37,7 +37,7 @@ def compute_normalized_laplacian(adj):
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, k=12, max_retries=3, print_info=False):
+def compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=12, max_retries=3, print_info=False):
     """
     Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
     Retries with adjusted parameters if convergence is not reached.
@@ -45,7 +45,10 @@ def compute_eigenvalues_eigenvectors(L_norm, k=12, max_retries=3, print_info=Fal
     k = k+1
     for attempt in range(max_retries):
         try:
-            eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
+            if name == 'PAYSIM' and dimension == '100K':
+                eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA', tol=1e-4, maxiter=1000)
+            else:
+                eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
             
             if len(eigenvalues) == k or (len(eigenvalues) > 2 and len(eigenvalues) < k):
                 if print_info:
@@ -55,8 +58,6 @@ def compute_eigenvalues_eigenvectors(L_norm, k=12, max_retries=3, print_info=Fal
                 eigenvalues = eigenvalues[idx]
                 eigenvectors = eigenvectors[:, idx]
 
-                # Discard first eigen (~0)
-                # eigenvalues[1:], eigenvectors[:, 1:]
                 return eigenvalues, eigenvectors
         except Exception as e:
             print(f"Attempt {attempt+1} failed: {e}")

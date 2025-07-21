@@ -41,7 +41,7 @@ if __name__ == '__main__':
         results_squic, squic_method, save = run_squic(Y_norm, results_squic, name, dimension)
         
     # Results
-    dict_cluster = clustering_2_communities(results_squic, squic_method)
+    dict_cluster = clustering_2_communities(results_squic, squic_method, name, dimension)
 
     metrics = ARI_fscore(dict_cluster, results_squic, account_prop)
 

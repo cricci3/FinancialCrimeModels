@@ -272,7 +272,7 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
     return dict_cluster
 
 
-def clustering_2_communities(results_squic, squic_method):
+def clustering_2_communities(results_squic, squic_method, name, dimension):
     dict_cluster = {
         squic_method : {}
     }
@@ -294,7 +294,7 @@ def clustering_2_communities(results_squic, squic_method):
             start = time.time()
 
             L_norm = compute_normalized_laplacian(X)
-            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, k=2)
+            _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=2)
             if eigenvectors is not None:
                 labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
                 # Convert labels to list of sets
