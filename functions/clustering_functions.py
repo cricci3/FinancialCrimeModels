@@ -147,10 +147,10 @@ def clustering_same_n(W_matrices, name, account_prop):
 
 def clustering_optimal_number(dimension, results_squic, plot=False, times=False):
     dict_cluster = {
-        "louvain" : {},
-        "spectral" : {},
-        "dbscan" : {},
-        "leiden" : {}
+        "Louvain" : {},
+        "Spectral" : {},
+        "DBSCAN" : {},
+        "Leiden" : {}
     }
 
     dbscan_params_dict = {
@@ -190,14 +190,14 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
         start = time.time()
         partition_louvain = community.louvain_communities(G)
         end_louv = time.time() - start
-        dict_cluster['louvain'][rho] = partition_louvain
+        dict_cluster['Louvain'][rho] = partition_louvain
 
         # Leiden
         start = time.time()
         G_igraph = ig.Graph.from_networkx(G)
         partition_leiden = la.find_partition(G_igraph, la.ModularityVertexPartition)
         end_leiden = time.time() - start
-        dict_cluster['leiden'][rho] = partition_leiden
+        dict_cluster['Leiden'][rho] = partition_leiden
 
         if dbscan_params_dict.get(dimension):
             dbscan = DBSCAN(eps=dbscan_params_dict[dimension]['epsilon'],
@@ -242,19 +242,19 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
 
         # Convert labels to list of sets
         partition_dbscan = labels_to_partition(labels_dbscan)
-        dict_cluster['dbscan'][rho] = partition_dbscan
+        dict_cluster['DBSCAN'][rho] = partition_dbscan
 
         # Spectral Clustering
         start = time.time()
-        optimal_k, eigenvectors = find_optimal_clusters(G, plot)
+        optimal_k, eigenvectors = find_optimal_clusters(G, dimension, plot)
         if eigenvectors is not None:
             labels_spectral = compute_spectral_clustering(eigenvectors, optimal_k, method='kmeans', plot=False)
             # Convert labels to list of sets
             partition_spectral = labels_to_partition(labels_spectral)
 
-            dict_cluster['spectral'][rho] = partition_spectral
+            dict_cluster['Spectral'][rho] = partition_spectral
         else:
-            dict_cluster['spectral'][rho] = None
+            dict_cluster['Spectral'][rho] = None
 
         end_spec = time.time() - start
 
@@ -274,7 +274,7 @@ def clustering_optimal_number(dimension, results_squic, plot=False, times=False)
     return dict_cluster
 
 
-def clustering_2_communities(results_squic, squic_method, name, dimension):
+def clustering_2_communities(results_squic, squic_method, dimension):
     dict_cluster = {
         squic_method : {}
     }
@@ -296,7 +296,7 @@ def clustering_2_communities(results_squic, squic_method, name, dimension):
         start = time.time()
 
         L_norm = compute_normalized_laplacian(X)
-        _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, name, dimension, k=2)
+        _, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, dimension, k=2)
         if eigenvectors is not None:
             labels_spectral = compute_spectral_clustering(eigenvectors, 2, method='kmeans')
             # Convert labels to list of sets
@@ -320,18 +320,18 @@ def internal_metrics(dict_cluster, W_matrices, leiden=False):
     if not leiden:
         int_metrics = {
             rho: {
-                'louvain': {},
-                'dbscan': {},
-                'spectral': {}
+                'Louvain': {},
+                'DBSCAN': {},
+                'Spectral': {}
             } for rho in matrix_dict.keys()
         }
     else:
         int_metrics = {
             rho: {
-                'louvain': {},
-                'leiden': {},
-                'dbscan': {},
-                'spectral': {}
+                'Louvain': {},
+                'Leiden': {},
+                'DBSCAN': {},
+                'Spectral': {}
             } for rho in matrix_dict.keys()
         }
 
@@ -423,18 +423,18 @@ def modularity_density(dict_cluster, W_matrices, leiden=False):
     if not leiden:
         int_metrics = {
             rho: {
-                'louvain': {},
-                'dbscan': {},
-                'spectral': {}
+                'Louvain': {},
+                'DBSCAN': {},
+                'Spectral': {}
             } for rho in matrix_dict.keys()
         }
     else:
         int_metrics = {
             rho: {
-                'louvain': {},
-                'leiden': {},
-                'dbscan': {},
-                'spectral': {}
+                'Louvain': {},
+                'Leiden': {},
+                'DBSCAN': {},
+                'Spectral': {}
             } for rho in matrix_dict.keys()
         }
 
@@ -505,7 +505,7 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
     metrics = {
         method: {
             rho: {
-                'spectral': {}
+                'Spectral': {}
             } for rho in results_squic[method].keys()
         } for method in dict_cluster.keys()
     }
@@ -533,10 +533,10 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
 
             # Compute modularity
             mod = community.modularity(G, partition)
-            metrics[method][rho]['spectral']['modularity'] = round(float(mod), 2)
+            metrics[method][rho]['Spectral']['modularity'] = round(float(mod), 2)
 
             # Number of clusters
-            metrics[method][rho]['spectral']['nCluster'] = len(partition)
+            metrics[method][rho]['Spectral']['nCluster'] = len(partition)
 
             # Compute F1-score (test both label alignments)
             f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
@@ -544,7 +544,7 @@ def modularity_fscore(dict_cluster, results_squic, account_prop):
 
             f1 = max(f1a, f1b)
 
-            metrics[method][rho]['spectral']['f1'] = round(f1, 2)
+            metrics[method][rho]['Spectral']['f1'] = round(f1, 2)
 
     return metrics
 
@@ -554,7 +554,7 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
     metrics = {
         method: {
             rho: {
-                'spectral': {}
+                'Spectral': {}
             } for rho in results_squic[method].keys()
         } for method in dict_cluster.keys()
     }
@@ -571,8 +571,8 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
     for method in dict_cluster:
         for rho, partition in dict_cluster[method].items():
             if not dict_cluster.get(method, {}).get(rho):
-                metrics[method][rho]['spectral']['ARI'] = 0.0
-                metrics[method][rho]['spectral']['f1'] = 0.5
+                metrics[method][rho]['Spectral']['ARI'] = 0.0
+                metrics[method][rho]['Spectral']['f1'] = 0.5
 
             else:
                 X = results_squic[method][rho]
@@ -595,11 +595,11 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
                 # print(cluster_labels)
 
                 # Number of clusters
-                metrics[method][rho]['spectral']['nCluster'] = len(partition)
+                metrics[method][rho]['Spectral']['nCluster'] = len(partition)
 
                 # Compute ARI
                 ari = adjusted_rand_score(true_labels, cluster_labels)
-                metrics[method][rho]['spectral']['ARI'] = round(ari, 2)
+                metrics[method][rho]['Spectral']['ARI'] = round(ari, 2)
 
                 # Compute F1 score (test both label alignments)
                 f1a = f1_score(true_labels, 1 - cluster_labels, average='weighted')
@@ -612,56 +612,9 @@ def ARI_fscore(dict_cluster, results_squic, account_prop):
                 else:
                     f1 = f1b
 
-                metrics[method][rho]['spectral']['f1'] = round(f1, 2)
+                metrics[method][rho]['Spectral']['f1'] = round(f1, 2)
 
     return metrics
-
-
-def plot_Q_f1(metrics_dict):
-    methods = ['squic-fit-matrix']
-    colors = {
-        'squic-fit-matrix': 'tab:orange'
-    }
-
-    fig, ax1 = plt.subplots(figsize=(6, 6))
-    ax2 = ax1.twinx()
-
-    for method in methods:
-
-        rhos = sorted(metrics_dict[method].keys())
-        Q_values = []
-        F1_values = []
-        valid_rhos = []
-
-        for rho in rhos:
-            metrics = metrics_dict[method][rho].get('spectral', {})
-            Q = metrics.get('modularity', None)
-            f1 = metrics.get('f1', None)
-            Q_values.append(Q)
-            F1_values.append(f1)
-            valid_rhos.append(rho)
-
-        color = colors[method]
-
-        # Modularity Q — dotted line
-        ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color='orange', label=f'Q')
-
-        # F1-score — solid line
-        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
-
-    # Axis labels
-    ax1.set_xlabel("lambda")
-    ax1.set_ylabel("Modularity Q", color='black')
-    ax2.set_ylabel("F1 Score", color='black')
-
-    # Legends
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2)
-
-    fig.tight_layout()
-    plt.grid(True)
-    plt.show()
 
 
 def study_CC(matrix):
