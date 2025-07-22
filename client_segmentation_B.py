@@ -1,14 +1,5 @@
-from functions.internal import load_dataset_1B, normalization
-from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation, check_symmetric_sparse
 from functions.clustering_functions import clustering_optimal_number, modularity_density
-import matplotlib.pyplot as plt
-import json
-from scipy import sparse
-from sklearn.neighbors import NearestNeighbors
-import pandas as pd
-import numpy as np
-import os
-from functions.plots import plot_timeseries, plot_knn, plot_PDens_Q
+from functions.plots import plot_PDens_Q
 from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic, show_df, ask_input, ask_yes_no
 
 

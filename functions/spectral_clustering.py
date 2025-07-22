@@ -37,7 +37,7 @@ def compute_normalized_laplacian(adj):
     return L_norm
 
 
-def compute_eigenvalues_eigenvectors(L_norm, name=None, dimension=None, k=12, max_retries=3, print_info=False):
+def compute_eigenvalues_eigenvectors(L_norm, dimension=None, k=12, max_retries=3, print_info=False):
     """
     Computes the first `k` smallest eigenvalues and eigenvectors of a normalized Laplacian.
     Retries with adjusted parameters if convergence is not reached.
@@ -45,7 +45,7 @@ def compute_eigenvalues_eigenvectors(L_norm, name=None, dimension=None, k=12, ma
     k = k+1
     for attempt in range(max_retries):
         try:
-            if name == 'PAYSIM' and dimension == '100K':
+            if dimension == '100K':
                 eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA', tol=1e-4, maxiter=1000)
             else:
                 eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
@@ -87,7 +87,7 @@ def compute_relative_eigengap(eigenvalues):
     return np.array(relative_eigengaps), np.array(k_values)
 
 
-def find_optimal_clusters(graph, plot=True):
+def find_optimal_clusters(graph, dimension, plot=True):
     """
     Find the optimal number of clusters using relative eigengap analysis.
     Input graph: sparse adjacency matrix (csr_matrix) or NetworkX graph.
@@ -101,7 +101,7 @@ def find_optimal_clusters(graph, plot=True):
     L_norm = compute_normalized_laplacian(adjacency_matrix)
 
     # Compute eigenvalues
-    eigenvalues, eigenvectors = compute_eigenvalues_eigenvectors(L_norm)
+    eigenvalues, eigenvectors = compute_eigenvalues_eigenvectors(L_norm, dimension)
 
     if eigenvalues is not None and eigenvectors is not None:
         # Compute relative eigengaps
