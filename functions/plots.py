@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import scienceplots
-plt.style.use(['science','no-latex'])
+plt.style.use('science')
 import pandas as pd
 import numpy as np
 from matplotlib.lines import Line2D
@@ -134,7 +134,7 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
         valid_rhos = []
 
         for rho in rhos:
-            metrics = metrics_dict[method][rho].get('spectral', {})
+            metrics = metrics_dict[method][rho].get('Spectral', {})
             ari = metrics.get('ARI', None)
             f1 = metrics.get('f1', None)
             ARI_values.append(ari)
@@ -150,7 +150,9 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
         ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
 
     # Axis labels
-    ax1.set_xlabel("lambda", fontsize=18)
+    # ax1.set_xlabel("Reg. parameter lambda", fontsize=18)
+    # plt.rcParams['text.usetex'] = True  # Enable LaTeX
+    ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
     ax1.set_ylabel("ARI", color='black', fontsize=18)
     ax2.set_ylabel("F1 Score", color='black', fontsize=18)
 
@@ -177,10 +179,10 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
 def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
 
     colors = {
-        'louvain':'green',
-        'leiden':'orange',
-        'spectral':'cornflowerblue',
-        'dbscan':'mediumorchid'
+        'Louvain':'green',
+        'Leiden':'orange',
+        'Spectral':'cornflowerblue',
+        'DBSCAN':'mediumorchid'
     }
 
     fig, ax1 = plt.subplots(figsize=(8, 8))
@@ -210,7 +212,9 @@ def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
             ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
             ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
 
-    ax1.set_xlabel("lambda", fontsize=18)
+    # ax1.set_xlabel("Reg. Parameter lambda", fontsize=18)
+    # plt.rcParams['text.usetex'] = True  # Enable LaTeX
+    ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
     ax1.set_ylabel("Modularity Q", color='black', fontsize=18)
     ax2.set_ylabel("Partition Density", color='black', fontsize=18)
 
@@ -270,7 +274,9 @@ def plot_results(metrics, ylabel, results, methods=['louvain', 'spectral', 'dbsc
         plt.plot(results['rho_values'], results[f'spectral_{metrics}'], 's-', label='Spectral', color=colors[1])
         plt.plot(results['rho_values'], results[f'dbscan_{metrics}'], '^-', label='DBSCAN', color=colors[2])
 
-    plt.xlabel('lambda', fontsize=22)
+    # plt.xlabel('lambda', fontsize=22)
+    # plt.rcParams['text.usetex'] = True  # Enable LaTeX
+    plt.xlabel(r'Reg. parameter $\lambda$', fontsize=18)
     plt.ylabel(ylabel, fontsize=22)
     plt.xscale('log')
 
