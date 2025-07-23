@@ -46,7 +46,7 @@ def compute_eigenvalues_eigenvectors(L_norm, dimension=None, k=12, max_retries=3
     for attempt in range(max_retries):
         try:
             if dimension == '100K':
-                eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA', tol=1e-4, maxiter=1000)
+                eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SA', tol=1e-4, maxiter=1000*(attempt+1))
             else:
                 eigenvalues, eigenvectors = eigsh(L_norm, k=k, which='SM', tol=0, maxiter=1000*(attempt+1))
             
