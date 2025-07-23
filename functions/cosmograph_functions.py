@@ -1,6 +1,7 @@
 import networkx as nx
 import pandas as pd
 from cosmograph import cosmo
+import os
 
 
 COLOR_LIST = [
@@ -32,7 +33,7 @@ def node_to_community(partition):
     return community_mapping
 
 
-def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, name, color_by='community', color_list=COLOR_LIST, show_id=True):
+def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, name, color_by='community', color_list=COLOR_LIST, show_id=True, export=True, print_rho=None):
 
     widget_dict = {
         rho: {
@@ -44,7 +45,6 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
         G = nx.from_numpy_array(X)
 
         community_mapping = node_to_community(dict_partition[squic_method][rho])
-        print(f"For rho {rho}, comm mapping is : {community_mapping}")
 
         # Sets node attributes from a given value or dictionary of values.
         nx.set_node_attributes(G, community_mapping, 'community')
@@ -139,6 +139,14 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
         )
 
         widget_dict[rho] = widget
+
+        if export and rho==print_rho:
+            # Export CSVs
+            export_base = f'cosmograph_export/{name}_rho_{rho}'
+            os.makedirs(os.path.dirname(export_base), exist_ok=True)
+            links.to_csv(f'{export_base}_edges.csv', index=False)
+            points.to_csv(f'{export_base}_nodes.csv', index=False)
+            print(f"Exported for Cosmograph WebApp: {export_base}_edges.csv and _nodes.csv")
     
     return widget_dict
 
@@ -159,86 +167,90 @@ def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_pro
             G = nx.from_numpy_array(X)
 
             # community_mapping = node_to_community(partition)
-            community_mapping = node_to_community(dict_partition[clustering_method][rho])
+            partition = dict_partition[clustering_method].get(rho, "Not Found")
+            if partition != None:
+                community_mapping = node_to_community(partition)
 
-            # Sets node attributes from a given value or dictionary of values.
-            nx.set_node_attributes(G, community_mapping, 'community')
+                # Sets node attributes from a given value or dictionary of values.
+                nx.set_node_attributes(G, community_mapping, 'community')
 
-            fraud_mapping = {}
-            for node in G.nodes():
-                if node in account_prop and isinstance(account_prop[node], dict):
-                    if 'fraud' in account_prop[node]:
-                        fraud_mapping[node] = account_prop[node]['fraud']
-                else:
-                    # Default value if node not found in account_prop
-                    fraud_mapping[node] = False
-            
-            # Set fraud attributes for all nodes
-            nx.set_node_attributes(G, fraud_mapping, 'fraud')
+                fraud_mapping = {}
+                for node in G.nodes():
+                    if node in account_prop and isinstance(account_prop[node], dict):
+                        if 'fraud' in account_prop[node]:
+                            fraud_mapping[node] = account_prop[node]['fraud']
+                    else:
+                        # Default value if node not found in account_prop
+                        fraud_mapping[node] = False
+                
+                # Set fraud attributes for all nodes
+                nx.set_node_attributes(G, fraud_mapping, 'fraud')
 
-            # Nodes: build dataframe from node attributes
-            nodes_data = []
-            fraudolent = []
+                # Nodes: build dataframe from node attributes
+                nodes_data = []
+                fraudolent = []
 
-            for node, data in G.nodes(data=True):
-                is_fraud = data.get('fraud', False)
+                for node, data in G.nodes(data=True):
+                    is_fraud = data.get('fraud', False)
 
-                # Create conditional label - only show label ID if fraudulent
-                label = str(node) if is_fraud else ""
+                    # Create conditional label - only show label ID if fraudulent
+                    label = str(node) if is_fraud else ""
 
-                if is_fraud:
-                    fraudolent.append(str(node))
+                    if is_fraud:
+                        fraudolent.append(str(node))
 
-                nodes_data.append({
-                    'id': node,
-                    # 'label': str(node),
-                    'label' : label,
-                    'community': data.get('community'),
-                    'color': data.get('color'),
-                    'degree': G.degree[node],
-                    'fraud' : is_fraud,
-                })
-            
-            points = pd.DataFrame(nodes_data)
+                    nodes_data.append({
+                        'id': node,
+                        # 'label': str(node),
+                        'label' : label,
+                        'community': data.get('community'),
+                        'color': data.get('color'),
+                        'degree': G.degree[node],
+                        'fraud' : is_fraud,
+                    })
+                
+                points = pd.DataFrame(nodes_data)
 
-            points['community'] = points['community'].astype('category')
+                points['community'] = points['community'].astype('category')
 
-            # Edges: extract links with weights
-            links_data = []
-            for u, v, d in G.edges(data=True):
-                links_data.append({
-                    'source': u,
-                    'target': v,
-                    'weight': d.get('weight', 1.0)
-                })
-            links = pd.DataFrame(links_data)
-            links['weight'] = links['weight'].abs()  # only positive thickness
-            # links['weight'] = links['weight'] * 10  # only positive thickness
+                # Edges: extract links with weights
+                links_data = []
+                for u, v, d in G.edges(data=True):
+                    links_data.append({
+                        'source': u,
+                        'target': v,
+                        'weight': d.get('weight', 1.0)
+                    })
+                links = pd.DataFrame(links_data)
+                links['weight'] = links['weight'].abs()  # only positive thickness
+                # links['weight'] = links['weight'] * 10  # only positive thickness
 
-            # COSMOGRAPH docs: https://colab.research.google.com/drive/1Rt8rmmeMuWyFjEqae2DdJ3NYymtjC9cT#scrollTo=IZUK7ioL1xKr
-            widget = cosmo(
-                points=points,
-                links=links,
-                point_id_by='id',
-                link_source_by='source',
-                link_target_by='target',
-                link_width_by='weight', # width of an edge given by weight = value in X between i and j
-                link_color='#E3E3E3',
-                link_greyout_opacity=0.1,
-                # link_color_by='community',
-                point_color_by=color_by,
-                point_label_by='id', # [id, class, fraud]
-                point_size_by='degree',
-                point_color_strategy='map',
-                point_color_by_map=color_list,
-                background_color='#FFFFFF',
-                show_labels_for=fraudolent
-            )
+                # COSMOGRAPH docs: https://colab.research.google.com/drive/1Rt8rmmeMuWyFjEqae2DdJ3NYymtjC9cT#scrollTo=IZUK7ioL1xKr
+                widget = cosmo(
+                    points=points,
+                    links=links,
+                    point_id_by='id',
+                    link_source_by='source',
+                    link_target_by='target',
+                    link_width_by='weight', # width of an edge given by weight = value in X between i and j
+                    link_color='#E3E3E3',
+                    link_greyout_opacity=0.1,
+                    # link_color_by='community',
+                    point_color_by=color_by,
+                    point_label_by='id', # [id, class, fraud]
+                    point_size_by='degree',
+                    point_color_strategy='map',
+                    point_color_by_map=color_list,
+                    background_color='#FFFFFF',
+                    show_labels_for=fraudolent
+                )
 
-            widget_dict[rho][clustering_method] = widget
+                widget_dict[rho][clustering_method] = widget
+            else:
+                print(f"No partition for rho {rho}, {clustering_method}")
+                widget_dict[rho][clustering_method] = "No clustering"
     
     return widget_dict
-
 
 # def visualize_graph(W_matrices, squic_method, account_prop, name, two_comm=True):
 
