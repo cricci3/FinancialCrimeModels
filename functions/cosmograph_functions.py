@@ -33,7 +33,7 @@ def node_to_community(partition):
     return community_mapping
 
 
-def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, name, color_by='community', color_list=COLOR_LIST, show_id=True, export=True, print_rho=None):
+def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST, show_label=True, export=None):
 
     widget_dict = {
         rho: {
@@ -71,8 +71,7 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
 
         for node, data in G.nodes(data=True):
             is_fraud = data.get('fraud', False)
-            if name == 'PAYSIM':
-                user_class = data.get('class', False)
+            user_class = data.get('class', False)
 
             # Create conditional label - only show label ID if fraudulent
             label = str(node) if is_fraud else ""
@@ -114,7 +113,7 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
                 ["M", "#FF9999"],  # Red/Pink
             ]
 
-        if show_id:
+        if show_label:
             point_label = 'class' # [id, class or fraud]
         else:
             point_label = None # to produce a graph without labels
@@ -140,9 +139,9 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
 
         widget_dict[rho] = widget
 
-        if export and rho==print_rho:
+        if export != None and rho == export:
             # Export CSVs
-            export_base = f'cosmograph_export/{name}_rho_{rho}'
+            export_base = f'cosmograph_export/PAYSIM_{export}'
             os.makedirs(os.path.dirname(export_base), exist_ok=True)
             links.to_csv(f'{export_base}_edges.csv', index=False)
             points.to_csv(f'{export_base}_nodes.csv', index=False)
@@ -151,7 +150,7 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
     return widget_dict
 
 
-def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST):
+def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST, export=None):
 
     widget_dict = {
         rho: {
@@ -246,6 +245,14 @@ def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_pro
                 )
 
                 widget_dict[rho][clustering_method] = widget
+
+                if export != None and rho == export:
+                    # Export CSVs
+                    export_base = f'cosmograph_export/AMLSIM_{export}_{clustering_method}'
+                    os.makedirs(os.path.dirname(export_base), exist_ok=True)
+                    links.to_csv(f'{export_base}_edges.csv', index=False)
+                    points.to_csv(f'{export_base}_nodes.csv', index=False)
+                    print(f"Exported for Cosmograph WebApp: {export_base}_edges.csv and _nodes.csv")
             else:
                 print(f"No partition for rho {rho}, {clustering_method}")
                 widget_dict[rho][clustering_method] = "No clustering"
