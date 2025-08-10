@@ -11,7 +11,7 @@ import seaborn as sns
 def plot_timeseries(df, name, dimension=None, type_df=None):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
-    plt.figure(figsize=(7,7))
+    plt.figure(figsize=(9,7), dpi=300)
 
     if type_df == 'norm':
         df = df.T
