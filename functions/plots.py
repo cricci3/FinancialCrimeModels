@@ -26,9 +26,15 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
             df = pd.DataFrame(df, index=day_labels, columns=user_labels)
 
     if name == 'PAYSIM' and type_df != 'norm':
-        colors = {'Clients': 'mediumseagreen', 
-              'Bank': 'crimson', 
-              'Merchants': 'darkturquoise'}
+        # colors = {'Clients': 'mediumseagreen', 
+        #       'Bank': 'crimson', 
+        #       'Merchants': 'darkturquoise'}
+
+        colors = {
+            'Clients': '#88B06B',   # muted green
+            'Bank': '#F0A631',      # muted orange
+            'Merchants': '#D95F5F'  # muted red 
+        }
         
         bank_dimension = ['100', '1K', '10K']
 
@@ -36,16 +42,16 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
         for user in df.columns:
             if user.startswith('C'):
                 color = colors['Clients']
-                plt.plot(df.index, df[user], color=color, alpha=0.6)
+                plt.plot(df.index, df[user], color=color, alpha=0.7)
             elif user.startswith('B'):
                 color = colors['Bank']
                 if dimension in bank_dimension:
-                    plt.plot(df.index, df[user], color=color, alpha=0.6)
+                    plt.plot(df.index, df[user], color=color, alpha=0.7)
             elif user.startswith('M'):
                 color = colors['Merchants']
-                plt.plot(df.index, df[user], color=color, alpha=0.6)
+                plt.plot(df.index, df[user], color=color, alpha=0.7)
             else:
-                plt.plot(df.index, df[user], alpha=0.6)
+                plt.plot(df.index, df[user], alpha=0.7)
             # plt.plot(df.index, df[user], color=color, alpha=0.6)
         
         # plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
@@ -68,12 +74,14 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.6)
+            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
 
     plt.xlabel("Days", fontsize=18)
     plt.ylabel("Balance", fontsize=18)
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18)
+    plt.grid(axis='y', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
+    plt.grid(axis='x', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.tight_layout()
     plt.show()
     return
