@@ -184,7 +184,7 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
     return
 
 
-def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
+def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False, metric='q'):
 
     colors = {
         'Louvain':'green',
@@ -202,28 +202,38 @@ def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False):
 
     for method in clustering_methods:
         PDensity_values = []
-        Q_values = []
+        second_values = []
         valid_rhos = []
 
         for rho in sorted(metrics_dict.keys()):
             method_metrics = metrics_dict[rho].get(method, {})
             pdens = method_metrics.get('p_density', None)
-            q = method_metrics.get('modularity', None)
+            if metric == 'q':
+                second_metric = method_metrics.get('modularity', None)
+            elif metric == 'int_density':
+                second_metric = method_metrics.get('int_density', None)
 
-            if pdens is not None and q is not None:
+
+            if pdens is not None and second_metric is not None:
                 PDensity_values.append(pdens)
-                Q_values.append(q)
+                second_values.append(second_metric)
                 valid_rhos.append(rho)
 
         if valid_rhos:
             color = colors.get(method, 'black')
-            ax1.plot(valid_rhos, Q_values, linestyle='dashed', marker='o', color=color, label=f'{method} Q')
-            ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'{method} Pdensity')
+            if metric == 'q':
+                ax1.plot(valid_rhos, second_values, linestyle='dashed', marker='o', color=color, label=f'Q {method}')
+            elif metric == 'int_density':
+                ax1.plot(valid_rhos, second_values, linestyle='dashed', marker='o', color=color, label=f'IntDensity {method}')
+            ax2.plot(valid_rhos, PDensity_values, linestyle='solid', marker='^', color=color, label=f'Pdensity {method}')
 
     # ax1.set_xlabel("Reg. Parameter lambda", fontsize=18)
     # plt.rcParams['text.usetex'] = True  # Enable LaTeX
     ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
-    ax1.set_ylabel("Modularity Q", color='black', fontsize=18)
+    if metric == 'q':
+        ax1.set_ylabel("Modularity Q", color='black', fontsize=18)
+    elif metric == 'int_density':
+        ax1.set_ylabel("Internal Density", color='black', fontsize=18)
     ax2.set_ylabel("Partition Density", color='black', fontsize=18)
 
     ax1.set_xticks(valid_rhos)
