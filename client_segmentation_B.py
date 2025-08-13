@@ -1,6 +1,6 @@
 from functions.clustering_functions import clustering_optimal_number, modularity_density
 from functions.plots import plot_PDens_Q
-from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic, show_df, ask_input, ask_yes_no
+from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic_fit_matrix, show_df, ask_input, ask_yes_no
 
 
 if __name__ == '__main__':
@@ -32,10 +32,10 @@ if __name__ == '__main__':
 
     # Run SQUIC_fit
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
-        results_squic, squic_method, save = run_squic_fit(Y_norm, knn_matrix, results_squic, name, dimension)
+        results_squic, squic_method, save = run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension)
 
     else:
-        results_squic, squic_method, save = run_squic(Y_norm, results_squic, name, dimension)
+        results_squic, squic_method, save = run_squic_fit(Y_norm, results_squic, name, dimension)
         
     # Results
     dict_cluster = clustering_optimal_number(dimension, results_squic, plot=False)

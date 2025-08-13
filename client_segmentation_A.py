@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scienceplots
 plt.style.use(['science'])
 from functions.plots import plot_ARI_f1
-from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic, ask_input, ask_yes_no
+from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic_fit_matrix, ask_input, ask_yes_no
 
 
 if __name__ == '__main__':
@@ -35,10 +35,10 @@ if __name__ == '__main__':
 
     # Run SQUIC_fit
     if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
-        results_squic, squic_method, save = run_squic_fit(Y_norm, knn_matrix, results_squic, name, dimension)
+        results_squic, squic_method, save = run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension)
         
     else:
-        results_squic, squic_method, save = run_squic(Y_norm, results_squic, name, dimension)
+        results_squic, squic_method, save = run_squic_fit(Y_norm, results_squic, name, dimension)
         
     # Results
     dict_cluster = clustering_2_communities(results_squic, squic_method, dimension)
