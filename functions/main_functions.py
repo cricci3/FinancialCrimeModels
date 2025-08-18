@@ -126,7 +126,7 @@ def normal_run(name):
 
 
     # visualize timeseries
-    plot_timeseries(Y, name, dimension)
+    plot_timeseries(Y, name, dimension, print_fig=True)
 
     if name == 'PAYSIM':
         print(Y)
@@ -146,7 +146,7 @@ def normal_run(name):
 
     if name == 'PAYSIM':
         # visualize timeseries with normalized data
-        plot_timeseries(Y_norm, name, dimension, type_df='norm')
+        plot_timeseries(Y_norm, name, dimension, type_df='norm', print_fig=True, account_prop=account_prop)
         print(Y_norm)
     else:
         plot_timeseries(Y_norm, name, type_df='norm')
@@ -201,7 +201,7 @@ def normal_run(name):
     return Y_norm, knn_matrix, account_prop, dimension
 
 
-def run_squic_fit(Y_norm, knn_matrix, results_squic, name, dimension):
+def run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension):
     if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
         printMatrix = True
     else:
@@ -228,7 +228,7 @@ def run_squic_fit(Y_norm, knn_matrix, results_squic, name, dimension):
     return results_squic, squic_method, save
 
 
-def run_squic(Y_norm, results_squic, name, dimension):
+def run_squic_fit(Y_norm, results_squic, name, dimension):
     if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
         printMatrix = True
     else:
