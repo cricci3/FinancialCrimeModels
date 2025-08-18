@@ -8,10 +8,10 @@ import os
 import seaborn as sns
 
 
-def plot_timeseries(df, name, dimension=None, type_df=None):
+def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, account_prop=None):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
-    plt.figure(figsize=(9,7), dpi=300)
+    plt.figure(figsize=(9,7))
 
     if type_df == 'norm':
         df = df.T
@@ -25,51 +25,58 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
             # Create the DataFrame
             df = pd.DataFrame(df, index=day_labels, columns=user_labels)
 
-    if name == 'PAYSIM' and type_df != 'norm':
+    if name == 'PAYSIM':
         # colors = {'Clients': 'mediumseagreen', 
         #       'Bank': 'crimson', 
         #       'Merchants': 'darkturquoise'}
 
         colors = {
-            'Clients': '#88B06B',   # muted green
-            'Bank': '#F0A631',      # muted orange
-            'Merchants': '#D95F5F'  # muted red 
+            'C': '#88B06B',   # Clients
+            'B': '#F0A631',   # Bank
+            'M': '#D95F5F'    # Merchants
         }
         
         bank_dimension = ['100', '1K', '10K']
 
         # Plot each column (account balance) as a line
-        for user in df.columns:
-            if user.startswith('C'):
-                color = colors['Clients']
-                plt.plot(df.index, df[user], color=color, alpha=0.7)
-            elif user.startswith('B'):
-                color = colors['Bank']
-                if dimension in bank_dimension:
-                    plt.plot(df.index, df[user], color=color, alpha=0.7)
-            elif user.startswith('M'):
-                color = colors['Merchants']
-                plt.plot(df.index, df[user], color=color, alpha=0.7)
+        for col in df.columns:
+            if type_df == 'norm' and account_prop is not None:
+                # map integer col → original user id and class
+                user_info = account_prop[col]
+                user_id = user_info["original_id"]
+                user_class = user_info["class"][0]  # first char: 'C', 'M', or 'B'
             else:
-                plt.plot(df.index, df[user], alpha=0.7)
-            # plt.plot(df.index, df[user], color=color, alpha=0.6)
-        
-        # plt.legend(colors, ['Clients', 'Bank', 'Merchands'])
-    
+                # no normalization: original names in df
+                user_id = col
+                user_class = col[0] if len(col) > 0 else 'C'
+            
+            # select color
+            if user_class == 'C':
+                color = colors['C']
+                plt.plot(df.index, df[col], color=color, alpha=0.7)
+            elif user_class == 'B':
+                if dimension in bank_dimension:
+                    color = colors['B']
+                    plt.plot(df.index, df[col], color=color, alpha=0.7)
+            elif user_class == 'M':
+                color = colors['M']
+                plt.plot(df.index, df[col], color=color, alpha=0.7)
+            else:
+                plt.plot(df.index, df[col], alpha=0.7)
+            
         if dimension in bank_dimension:
             legend_elements = [
-                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
-                Line2D([0], [0], color=colors.get('Bank'), lw=4, label='Bank'),
-                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
+                Line2D([0], [0], color=colors['C'], lw=4, label='Clients'),
+                Line2D([0], [0], color=colors['B'], lw=4, label='Bank'),
+                Line2D([0], [0], color=colors['M'], lw=4, label='Merchants')
             ]
         else:
             legend_elements = [
-                Line2D([0], [0], color=colors.get('Clients'), lw=4, label='Clients'),
-                Line2D([0], [0], color=colors.get('Merchants'), lw=4, label='Merchants')
+                Line2D([0], [0], color=colors['C'], lw=4, label='Clients'),
+                Line2D([0], [0], color=colors['M'], lw=4, label='Merchants')
             ]
 
-        if type_df != 'norm':
-            plt.legend(handles=legend_elements, fontsize=16)
+        plt.legend(handles=legend_elements, fontsize=16)
     
     else:
         # Plot each column (account balance) as a line
@@ -83,6 +90,11 @@ def plot_timeseries(df, name, dimension=None, type_df=None):
     plt.grid(axis='y', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.grid(axis='x', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.tight_layout()
+    if print_fig:
+        if type_df is None:
+            plt.savefig(f'ts_{name}_{dimension}', dpi=300)
+        else:
+            plt.savefig(f'ts_{name}_{dimension}_norm', dpi=300)
     plt.show()
     return
 
@@ -118,7 +130,7 @@ def print_covariance_matrix(X, show=False, save=False, path=None, file_name=None
     if save:
         # if path does not exists, create it
         os.makedirs(path, exist_ok=True)
-        plt.savefig(f"{path}/{file_name}")
+        plt.savefig(f"{path}/{file_name}", dpi=180)
     
     if show:
         plt.show()
