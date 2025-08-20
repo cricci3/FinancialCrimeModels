@@ -8,7 +8,7 @@ import os
 import seaborn as sns
 
 
-def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, account_prop=None):
+def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_fig=None, account_prop=None, title=None):
     # Plot the balance evolution for all users (columns) as separate lines
     # plt.figure(figsize=(15,10), dpi= 300)
     plt.figure(figsize=(9,7))
@@ -25,7 +25,7 @@ def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, acc
             # Create the DataFrame
             df = pd.DataFrame(df, index=day_labels, columns=user_labels)
 
-    if name == 'PAYSIM':
+    if name == 'PAYSIM' and labels == True:
         # colors = {'Clients': 'mediumseagreen', 
         #       'Bank': 'crimson', 
         #       'Merchants': 'darkturquoise'}
@@ -36,7 +36,7 @@ def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, acc
             'M': '#D95F5F'    # Merchants
         }
         
-        bank_dimension = ['100', '1K', '10K']
+        bank_dimension = ['100', '1K']
 
         # Plot each column (account balance) as a line
         for col in df.columns:
@@ -81,7 +81,10 @@ def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, acc
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
+            if user[0] == 'B':
+                pass
+            else:
+                plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
 
     plt.xlabel("Days", fontsize=18)
     plt.ylabel("Balance", fontsize=18)
@@ -90,11 +93,12 @@ def plot_timeseries(df, name, dimension=None, type_df=None, print_fig=False, acc
     plt.grid(axis='y', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.grid(axis='x', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.tight_layout()
-    if print_fig:
+    if save_fig is not None:
+        os.makedirs(f'{save_fig}/{dimension}', exist_ok=True)
         if type_df is None:
-            plt.savefig(f'ts_{name}_{dimension}', dpi=300)
+            plt.savefig(f'{save_fig}/{dimension}/{title}', dpi=300)
         else:
-            plt.savefig(f'ts_{name}_{dimension}_norm', dpi=300)
+            plt.savefig(f'{save_fig}/{dimension}/{title}', dpi=300)
     plt.show()
     return
 
