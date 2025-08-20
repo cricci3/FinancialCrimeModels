@@ -143,61 +143,59 @@ def print_covariance_matrix(X, show=False, save=False, path=None, file_name=None
 
 def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
     methods = [squic_method]
-    colors = {
-        squic_method: 'tab:orange'
-    }
+    colors = {squic_method: 'tab:orange'}
 
     fig, ax1 = plt.subplots(figsize=(8, 8))
     ax2 = ax1.twinx()
 
     for method in methods:
-
         rhos = sorted(metrics_dict[method].keys())
-        ARI_values = []
-        F1_values = []
-        valid_rhos = []
+        ARI_values, F1_values = [], []
 
         for rho in rhos:
             metrics = metrics_dict[method][rho].get('Spectral', {})
-            ari = metrics.get('ARI', None)
-            f1 = metrics.get('f1', None)
-            ARI_values.append(ari)
-            F1_values.append(f1)
-            valid_rhos.append(rho)
+            ARI_values.append(metrics.get('ARI', None))
+            F1_values.append(metrics.get('f1', None))
 
         color = colors[method]
+        x_positions = range(len(rhos))  # equally spaced positions
 
-        # Modularity Q — dotted line
-        ax1.plot(valid_rhos, ARI_values, linestyle='dashed', marker='o', color='orange', label=f'ARI')
+        # ARI — dashed line
+        ax1.plot(x_positions, ARI_values, linestyle='dashed', marker='o',
+                 color='orange', label='ARI')
 
         # F1-score — solid line
-        ax2.plot(valid_rhos, F1_values, linestyle='solid', marker='^', color='green', label=f'F1')
+        ax2.plot(x_positions, F1_values, linestyle='solid', marker='^',
+                 color='green', label='F1')
 
-    # Axis labels
-    # ax1.set_xlabel("Reg. parameter lambda", fontsize=18)
-    # plt.rcParams['text.usetex'] = True  # Enable LaTeX
+        # Replace numeric ticks with rho labels
+        ax1.set_xticks(x_positions)
+        ax1.set_xticklabels([str(r) for r in rhos], fontsize=13)
+
+    ax1.tick_params(axis='y', labelsize=13)
+    ax2.tick_params(axis='y', labelsize=13)
+
+    # Labels
     ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
     ax1.set_ylabel("ARI", color='black', fontsize=18)
     ax2.set_ylabel("F1 Score", color='black', fontsize=18)
 
-    ax1.tick_params(axis='x', labelsize=18)
-    ax1.tick_params(axis='y', labelsize=18)
-    ax2.tick_params(axis='y', labelsize=18)
-
     # Legends
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=2, fontsize=12)
+    ax2.legend(lines1 + lines2, labels1 + labels2,
+               loc='lower center', bbox_to_anchor=(0.5, -0.2),
+               ncol=2, fontsize=14)
 
     fig.tight_layout()
-    plt.grid(True)
+    plt.grid(True, axis='y', alpha=0.2)
     if save:
-        # if path does not exists, create it
         os.makedirs(f'images/PAYSIM/{dimension}', exist_ok=True)
         plt.savefig(f"images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
         print(f"Plot saved in images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
     plt.show()
     return
+
 
 
 def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False, metric='q'):
