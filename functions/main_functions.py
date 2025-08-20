@@ -223,9 +223,9 @@ def run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension):
             study_CC(knn_matrix)
     
     squic_method = 'squic-fit-matrix'
-    results_squic[squic_method] = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, study, printMatrix, save)
+    results_squic[squic_method], times_dict = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, study, printMatrix, save)
 
-    return results_squic, squic_method, save
+    return results_squic, squic_method, save, times_dict
 
 
 def run_squic_fit(Y_norm, results_squic, name, dimension):
@@ -240,6 +240,6 @@ def run_squic_fit(Y_norm, results_squic, name, dimension):
         save = False
 
     squic_method = 'squic-fit'
-    results_squic[squic_method] = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
+    results_squic[squic_method], times_dict = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
 
-    return results_squic, squic_method, save
+    return results_squic, squic_method, save, times_dict

@@ -141,12 +141,76 @@ def print_covariance_matrix(X, show=False, save=False, path=None, file_name=None
     return
 
 
-def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
+# def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=False):
+#     methods = [squic_method]
+#     colors = {squic_method: 'tab:orange'}
+
+#     fig, ax1 = plt.subplots(figsize=(8, 8))
+#     ax2 = ax1.twinx()
+
+#     for method in methods:
+#         rhos = sorted(metrics_dict[method].keys())
+#         ARI_values, F1_values = [], []
+
+#         for rho in rhos:
+#             metrics = metrics_dict[method][rho].get('Spectral', {})
+#             ARI_values.append(metrics.get('ARI', None))
+#             F1_values.append(metrics.get('f1', None))
+
+#         color = colors[method]
+#         x_positions = range(len(rhos))  # equally spaced positions
+
+#         # ARI — dashed line
+#         ax1.plot(x_positions, ARI_values, linestyle='dashed', marker='o',
+#                  color='orange', label='ARI')
+
+#         # F1-score — solid line
+#         ax2.plot(x_positions, F1_values, linestyle='solid', marker='^',
+#                  color='green', label='F1')
+
+#         # Replace numeric ticks with rho labels
+#         ax1.set_xticks(x_positions)
+#         ax1.set_xticklabels([str(r) for r in rhos], fontsize=13)
+
+#     ax1.tick_params(axis='y', labelsize=13)
+#     ax2.tick_params(axis='y', labelsize=13)
+
+#     # Labels
+#     ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
+#     ax1.set_ylabel("ARI", color='black', fontsize=18)
+#     ax2.set_ylabel("F1 Score", color='black', fontsize=18)
+
+#     # Legends
+#     lines1, labels1 = ax1.get_legend_handles_labels()
+#     lines2, labels2 = ax2.get_legend_handles_labels()
+#     ax2.legend(lines1 + lines2, labels1 + labels2,
+#                loc='upper center', bbox_to_anchor=(0.5, -0.2),
+#                ncol=2, fontsize=14, frameon=True)
+
+#     fig.tight_layout()
+#     plt.grid(True, axis='y', alpha=0.2)
+#     if save:
+#         os.makedirs(f'images/PAYSIM/{dimension}', exist_ok=True)
+#         plt.savefig(f"images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
+#         print(f"Plot saved in images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
+#     plt.show()
+#     return
+
+def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=False):
     methods = [squic_method]
     colors = {squic_method: 'tab:orange'}
 
-    fig, ax1 = plt.subplots(figsize=(8, 8))
-    ax2 = ax1.twinx()
+    # Create figure with 2 rows if times_dict is provided
+    if times_dict is not None:
+        fig, (ax_top, ax_bottom) = plt.subplots(
+            2, 1, figsize=(8, 10), gridspec_kw={'height_ratios': [3, 1]}, sharex=True
+        )
+        ax1 = ax_top
+        ax2 = ax1.twinx()
+    else:
+        fig, ax1 = plt.subplots(figsize=(8, 8))
+        ax2 = ax1.twinx()
+        ax_bottom = None
 
     for method in methods:
         rhos = sorted(metrics_dict[method].keys())
@@ -157,7 +221,6 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
             ARI_values.append(metrics.get('ARI', None))
             F1_values.append(metrics.get('f1', None))
 
-        color = colors[method]
         x_positions = range(len(rhos))  # equally spaced positions
 
         # ARI — dashed line
@@ -172,30 +235,42 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, save=False):
         ax1.set_xticks(x_positions)
         ax1.set_xticklabels([str(r) for r in rhos], fontsize=13)
 
-    ax1.tick_params(axis='y', labelsize=13)
-    ax2.tick_params(axis='y', labelsize=13)
+        # If times_dict provided, add bar plot below
+        if times_dict is not None and ax_bottom is not None:
+            times = [times_dict.get(rho, 0) for rho in rhos]
+            ax_bottom.bar(x_positions, times, width=0.6, color='steelblue', alpha=0.7)
+            ax_bottom.set_ylabel("Time (s)", fontsize=16)
+            ax_bottom.tick_params(axis='y', labelsize=13)
+            ax_bottom.tick_params(axis='x', labelsize=13)
+            ax_bottom.grid(True, axis='y', alpha=0.2)
+            ax_bottom.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)  # x-label only on bottom
 
     # Labels
-    ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
     ax1.set_ylabel("ARI", color='black', fontsize=18)
     ax2.set_ylabel("F1 Score", color='black', fontsize=18)
 
-    # Legends
+    if times_dict is None:  # if no time subplot, put xlabel on main plot
+        ax1.set_xlabel(r'Reg. parameter $\lambda$', fontsize=18)
+
+    ax1.tick_params(axis='y', labelsize=13)
+    ax2.tick_params(axis='y', labelsize=13)
+
+    # Legends (above ARI/F1 plot)
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines1 + lines2, labels1 + labels2,
-               loc='lower center', bbox_to_anchor=(0.5, -0.2),
-               ncol=2, fontsize=14)
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+               loc='upper center', bbox_to_anchor=(0.5, 1.15),
+               ncol=2, fontsize=14, frameon=True)
+    
+    plt.grid(True, axis='y', alpha=0.2)
 
     fig.tight_layout()
-    plt.grid(True, axis='y', alpha=0.2)
     if save:
         os.makedirs(f'images/PAYSIM/{dimension}', exist_ok=True)
         plt.savefig(f"images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
         print(f"Plot saved in images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
     plt.show()
     return
-
 
 
 def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False, metric='q'):

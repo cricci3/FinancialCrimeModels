@@ -281,11 +281,13 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
     squic_method = 'squic-fit'
 
     W_matrices = {}
+    times_dict = {}
 
     for rho in lambdas:
         W_matrices[rho], end_time = squic_fit_sparse(Y_norm, rho, rho/10)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
+        times_dict[rho] = end_time
 
         # Get diagonal elements
         diagonal = W_matrices[rho].diagonal()
@@ -305,7 +307,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
         else:
             print(f" Matrix is not symmetric per rho {rho}")
 
-    return W_matrices
+    return W_matrices, times_dict
 
 
 def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study=False, printMatrix=False, save=False):
@@ -317,6 +319,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
     ROWS = len(Y_norm)
 
     W_matrices = {}
+    times_dict = {}
 
     for rho in lambdas:
         #W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/10)
@@ -324,6 +327,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
+        times_dict[rho] = end_time
         # Get diagonal elements
         diagonal = W_matrices[rho].diagonal()
 
@@ -345,4 +349,4 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
         if study:
             study_CC(W_matrices[rho])
 
-    return W_matrices
+    return W_matrices, times_dict
