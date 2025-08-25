@@ -33,7 +33,7 @@ def node_to_community(partition):
     return community_mapping
 
 
-def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST, show_label=True, export=None):
+def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST):
 
     widget_dict = {
         rho: {
@@ -49,44 +49,27 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
         # Sets node attributes from a given value or dictionary of values.
         nx.set_node_attributes(G, community_mapping, 'community')
 
-        fraud_mapping = {}
         class_mapping = {}
         for node in G.nodes():
             if node in account_prop and isinstance(account_prop[node], dict):
-                if 'fraud' in account_prop[node]:
-                    fraud_mapping[node] = account_prop[node]['fraud']
                 if 'class' in account_prop[node]:
                     class_mapping[node] = account_prop[node]['class']
-            else:
-                # Default value if node not found in account_prop
-                fraud_mapping[node] = False
         
         # Set fraud attributes for all nodes
-        nx.set_node_attributes(G, fraud_mapping, 'fraud')
         nx.set_node_attributes(G, class_mapping, 'class')
 
         # Nodes: build dataframe from node attributes
         nodes_data = []
-        fraudolent = []
 
         for node, data in G.nodes(data=True):
-            is_fraud = data.get('fraud', False)
             user_class = data.get('class', False)
-
-            # Create conditional label - only show label ID if fraudulent
-            label = str(node) if is_fraud else ""
-
-            if is_fraud:
-                fraudolent.append(str(node))
 
             nodes_data.append({
                 'id': node,
                 # 'label': str(node),
-                'label' : label,
                 'community': data.get('community'),
                 'color': data.get('color'),
                 'degree': G.degree[node],
-                'fraud' : is_fraud,
                 'class' : user_class
             })
         
@@ -113,39 +96,23 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
                 ["M", "#FF9999"],  # Red/Pink
             ]
 
-        if show_label:
-            point_label = 'class' # [id, class or fraud]
-        else:
-            point_label = None # to produce a graph without labels
-
         # COSMOGRAPH docs: https://colab.research.google.com/drive/1Rt8rmmeMuWyFjEqae2DdJ3NYymtjC9cT#scrollTo=IZUK7ioL1xKr
         widget = cosmo(
             points=points,
             links=links,
-            point_id_by='id',
             link_source_by='source',
             link_target_by='target',
             link_width_by='weight',
             link_color='#E3E3E3',
             link_greyout_opacity=0.1,
             point_color_by=color_by,
-            point_label_by=point_label,
             point_size_by='degree',
             point_color_strategy='map',
             point_color_by_map=color_list,
             background_color='#FFFFFF',
-            show_labels_for=fraudolent
         )
 
         widget_dict[rho] = widget
-
-        if export != None and rho == export:
-            # Export CSVs
-            export_base = f'cosmograph_export/PAYSIM_{export}'
-            os.makedirs(os.path.dirname(export_base), exist_ok=True)
-            links.to_csv(f'{export_base}_edges.csv', index=False)
-            points.to_csv(f'{export_base}_nodes.csv', index=False)
-            print(f"Exported for Cosmograph WebApp: {export_base}_edges.csv and _nodes.csv")
     
     return widget_dict
 
