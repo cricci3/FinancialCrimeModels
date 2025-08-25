@@ -45,7 +45,7 @@ def parse_input(user_input, name_dataset):
         raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., {name_dataset}_10K)")
 
 
-def load_dataset_1A():
+def load_dataset_paysim():
     """Prompt user input and load the corresponding dataset."""
     while True:
         user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., PAYSIM_10K): ")
@@ -66,7 +66,7 @@ def load_dataset_1A():
     return df, name, dimension, account_prop
 
 
-def load_dataset_1B():
+def load_dataset_amlsim():
     """Prompt user input and load the corresponding dataset."""
     while True:
         user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
