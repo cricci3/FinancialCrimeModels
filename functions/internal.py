@@ -15,14 +15,13 @@ import networkx as nx
 from cosmograph import cosmo
 
 
-def parse_input(user_input, name_dataset):
-    """Parse and validate the dataset input, which can be 'NAME_DIMENSION' or just 'NAME' (e.g., LIBRA)."""
+def parse_input(user_input):
+    """Parse and validate the dataset input, which can be 'NAME_DIMENSION'."""
     user_input = user_input.strip().upper()
     parts = user_input.split("_")
 
-    valid_names_with_dimensions = {name_dataset}
-    valid_names_without_dimensions = {"LIBRA"}
-    valid_dimensions = {"100", "1K", "10K", "100K", "1M"}
+    valid_names_with_dimensions = {"AMLSIM", "PAYSIM"}
+    valid_dimensions = {"100", "1K", "10K", "100K"}
 
     # if len(parts) == 1:
     #     name = parts[0]
@@ -42,7 +41,7 @@ def parse_input(user_input, name_dataset):
 
     else:
         # raise ValueError("Input must be in the format NAME_DIMENSION (e.g., PAYSIM_10K) or just NAME (e.g., LIBRA)")
-        raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., {name_dataset}_10K)")
+        raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K)")
 
 
 def load_dataset_paysim():
@@ -80,6 +79,28 @@ def load_dataset_amlsim():
 
     if name == 'AMLSIM':
         df, account_prop = AMLSim_preprocessing(dimension)
+    else:
+        df = None
+
+    return df, name, dimension, account_prop
+
+
+def load_dataset():
+    """Prompt user input and load the corresponding dataset."""
+    while True:
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
+
+        try:
+            name, dimension = parse_input(user_input)
+            break
+        except ValueError as e:
+            print(f"Error: {e}")
+            continue
+
+    if name == 'AMLSIM':
+        df, account_prop = AMLSim_preprocessing(dimension)
+    elif name == 'PAYSIM':
+        df, account_prop = PaySim_preprocessing(dimension)
     else:
         df = None
 
