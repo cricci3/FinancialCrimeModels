@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib.lines import Line2D
 import os
 import seaborn as sns
+from matplotlib.gridspec import GridSpec
 
 
 def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_fig=None, account_prop=None, title=None):
@@ -114,6 +115,23 @@ def plot_knn(knn_matrix, name, dimension, save=False):
         dir = f'images/{name}/{dimension}'
         os.makedirs(dir, exist_ok=True)
         plt.savefig(f'{dir}/knn_matrix')
+    plt.show()
+    return
+
+
+def plot_theta(theta, name, dim, LAMBDA, save=False):
+    plt.figure(figsize=(7, 7))
+    plt.spy(theta, markersize=5)
+    plt.xlabel("Users", fontsize=18)
+    plt.ylabel("Users", fontsize=18)
+
+    plt.tick_params(axis='x', labelsize=18)
+    plt.tick_params(axis='y', labelsize=18) 
+    if save:
+        path = f'decomposition/glasso_images/{name.lower()}/{dim}'
+        os.makedirs(path, exist_ok=True)
+        lambda_str = str(LAMBDA).replace(".", "")
+        plt.savefig(f"{path}/squic_fit_{lambda_str}", dpi=300)
     plt.show()
     return
 
@@ -346,6 +364,95 @@ def plot_PDens_Q(name, metrics_dict, dimension, squic_method, save=False, metric
 
     plt.show()
     return
+
+
+def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
+    colors = {
+        'louvain': 'green',
+        'leiden': 'orange',
+        'spectral': 'cornflowerblue',
+        'dbscan': 'mediumorchid'
+    }
+
+    # figure with a short time panel below
+    fig = plt.figure(figsize=(8, 8))
+    gs = GridSpec(nrows=2, ncols=1, height_ratios=[4, 1], hspace=0.05)
+    ax1 = fig.add_subplot(gs[0, 0])          # Q (left y)
+    ax2 = ax1.twinx()                         # Pdensity (right y)
+    ax_time = fig.add_subplot(gs[1, 0], sharex=ax1)
+
+    # Collect the sorted unique rho values (λ) for x (equally spaced categories)
+    all_rhos = sorted(int_metrics.keys())
+    x_pos_map = {rho: i for i, rho in enumerate(all_rhos)}  # rho -> index 0..N-1
+
+    # Methods present in the first rho entry — keep only dict-valued keys (exclude 'time')
+    first_rho = all_rhos[0]
+    clustering_methods = [k for k, v in int_metrics[first_rho].items() if isinstance(v, dict)]
+
+    # --- Time panel data (seconds) ---
+    time_values, time_x = [], []
+    for rho in all_rhos:
+        end_time = int_metrics.get(rho, {}).get('time', np.nan)  # float seconds
+        # if some entry is missing or NaN, keep NaN (line plot will skip; bar will show 0 if we choose to)
+        time_values.append(end_time)
+        time_x.append(x_pos_map[rho])
+
+    # --- Top panel: Q and Pdensity for each method ---
+    for method in clustering_methods:
+        x_idx, q_vals, pden_vals = [], [], []
+        for rho in all_rhos:
+            mm = int_metrics.get(rho, {}).get(method, None)
+            if not isinstance(mm, dict):
+                continue
+            pdens = mm.get('p_density', None)
+            modularity = mm.get('modularity', None)
+            if (pdens is not None) and (modularity is not None):
+                x_idx.append(x_pos_map[rho])
+                q_vals.append(modularity)
+                pden_vals.append(pdens)
+
+        if x_idx:
+            c = colors.get(method, 'black')
+            ax1.plot(x_idx, q_vals, linestyle='--', marker='o', color=c, label=f'Q {method}')
+            ax2.plot(x_idx, pden_vals, linestyle='-', marker='^', color=c, label=f'Pdensity {method}')
+
+    # ===== top axes labels & ticks =====
+    ax1.set_ylabel('Modularity Q', color='black', fontsize=16)
+    ax2.set_ylabel('Partition Density', color='black', fontsize=16)
+    ax1.set_xticks(range(len(all_rhos)))
+    ax1.set_xticklabels([str(r) for r in all_rhos], fontsize=13)
+    ax1.tick_params(axis='y', labelsize=13)
+    ax2.tick_params(axis='y', labelsize=13)
+    ax1.grid(True, axis='y', alpha=0.3)
+
+    # unified legend (top plot)
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2,
+            loc='upper center', bbox_to_anchor=(0.5, 1.15),
+            ncol=4, fontsize=11, frameon=True)
+
+    # ===== bottom time panel (seconds) =====
+    time_values = np.array(time_values, dtype=float)
+    # bars (replace NaN with 0 for bars; or switch to a line plot to skip NaNs)
+    ax_time.bar(time_x, np.nan_to_num(time_values, nan=0.0),
+                width=0.6, alpha=0.6, linewidth=0.5)
+
+    ax_time.set_ylabel('Time (s)', fontsize=14)
+    ax_time.set_xlabel(r'Reg. parameter $\lambda$', fontsize=16)
+    ax_time.tick_params(axis='x', labelsize=13)
+    ax_time.tick_params(axis='y', labelsize=12)
+    ax_time.grid(True, axis='y', alpha=0.2)
+
+    # hide duplicated x tick labels on top axis
+    plt.setp(ax1.get_xticklabels(), visible=False)
+
+    fig.tight_layout()
+    if save:
+        path = f'decomposition/glasso_images/{name.lower()}/{dim}'
+        os.makedirs(path, exist_ok=True)
+        plt.savefig(f'{path}/plot', dpi=300)
+    plt.show()
 
 
 def plot_CC(group_coords, colors):
