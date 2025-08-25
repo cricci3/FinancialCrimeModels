@@ -36,10 +36,7 @@ def read_lambdas(name, dimension, type):
     with open('lambda_values.json') as f:
             lambda_data = json.load(f)
         
-    if name == 'LIBRA':
-        lambdas = lambda_data[name]
-    else:
-        lambdas = lambda_data[name][dimension][type]
+    lambdas = lambda_data[name][dimension][type]
     
     return lambdas
 
@@ -274,7 +271,7 @@ def squic_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, printMatr
 
 def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False, path=None):
     
-    lambdas = read_lambdas(name, dimension, "no-bias")
+    lambdas = read_lambdas("PAYSIM-extension", dimension, "no-bias")
 
     ROWS = len(Y_norm)
 
@@ -312,7 +309,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
 
 def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study=False, printMatrix=False, save=False):
     
-    lambdas = read_lambdas(name, dimension, "bias")
+    lambdas = read_lambdas("PAYSIM-extension", dimension, "bias")
 
     squic_method = 'squic-fit-matrix'
 
