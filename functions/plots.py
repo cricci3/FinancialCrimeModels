@@ -81,7 +81,7 @@ def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_f
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            if user[0] == 'B':
+            if str(user)[0] == 'B':
                 pass
             else:
                 plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
@@ -134,7 +134,7 @@ def print_covariance_matrix(X, show=False, save=False, path=None, file_name=None
     if save:
         # if path does not exists, create it
         os.makedirs(path, exist_ok=True)
-        plt.savefig(f"{path}/{file_name}", dpi=180)
+        plt.savefig(f"{path}/{file_name}", dpi=300)
     
     if show:
         plt.show()
@@ -266,9 +266,10 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=Fal
 
     fig.tight_layout()
     if save:
-        os.makedirs(f'images/PAYSIM/{dimension}', exist_ok=True)
-        plt.savefig(f"images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
-        print(f"Plot saved in images/PAYSIM/{dimension}/ARI_F1_{squic_method}")
+        path = f'images/PAYSIM/{dimension}'
+        os.makedirs(path, exist_ok=True)
+        plt.savefig(f"{path}/ARI_F1_{squic_method}", dpi=300)
+        print(f"Plot saved in {path} as ARI_F1_{squic_method}")
     plt.show()
     return
 
