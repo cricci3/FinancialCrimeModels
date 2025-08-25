@@ -81,7 +81,7 @@ def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_f
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            if str(user)[0] == 'B':
+            if name == "PAYSIM" and user[0] == 'B':
                 pass
             else:
                 plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
