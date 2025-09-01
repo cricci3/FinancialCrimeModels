@@ -86,8 +86,7 @@ Client segmentation is a fundamental task in financial services, enabling instit
 
 
 6. **View Results**  
-    For `experiment1.py` (AMLSim/PaySim – Multiple Clustering Methods):
-   Output will look like:
+    For `experiment1.py` (AMLSim/PaySim – Multiple Clustering Methods) output will look like:
 
    ```
    For lambda = 0.01:
@@ -95,6 +94,7 @@ Client segmentation is a fundamental task in financial services, enabling instit
        leiden:   PDensity = 0.33, Q = 0.27, nCluster = 5, nIsolated = 0
        dbscan:   PDensity = 0.23, Q = -0.0, nCluster = 1, nIsolated = 0
        spectral:   PDensity = 0.23, Q = -0.0, nCluster = 1, nIsolated = 0
+    ...
    ```
 
    - `PDensity`: Average density between clusters
@@ -102,17 +102,22 @@ Client segmentation is a fundamental task in financial services, enabling instit
    - `nCluster`: Number of clusters detected
    - `nIsolated`: Number of isolated nodes
 
-    For `experiment2_paysim`:
-   Output will look like:
+    In addition, a plot is generated to show how these metrics vary across different regularization parameters.
+   
+
+    For `experiment2_paysim` output will look like:
 
    ```
    For lambda = 0.6 : 'nCluster': 2, 'ARI': -0.03, 'f1': 0.58
    For lambda = 0.5 : 'nCluster': 2, 'ARI': 1.0, 'f1': 1.0
    For lambda = 0.4 : 'nCluster': 2, 'ARI': 1.0, 'f1': 1.0
+   ...
    ```
 
    - `ARI`: Adjusted Rand Index
    - `f1`: F1 Score
    - `nCluster`: Number of clusters (should be 2)
 
+    A plot is also generated to illustrate how the metrics evolve with different regularization parameters.
+    
     When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.    
