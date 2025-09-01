@@ -3,8 +3,8 @@
 This repository contains the official code for the Master thesis "Enhancing Financial Client Segmentation Models through Time-Series Clustering".
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/80920cfa-6cbe-4faa-80b3-0b8c28f226f1" alt="timeseries" width="250" heigth="250"/>
-  <img src="https://github.com/user-attachments/assets/5ba6e641-725f-4ba8-8326-ff2561c8a973" alt="leiden_02" width="250" heigth="250"/>
+  <img src="https://github.com/user-attachments/assets/80920cfa-6cbe-4faa-80b3-0b8c28f226f1" alt="timeseries" width="250" height="250"/>
+  <img src="https://github.com/user-attachments/assets/5ba6e641-725f-4ba8-8326-ff2561c8a973" alt="leiden_02" width="250" height="250"/>
 </p>
 
 In this work, we propose a framework that can generate client segments in settings where only aggregate balance data are available, simulating scenarios in which detailed transaction records cannot be accessed. Utilizing simulated customer and transaction data, the study develops an unsupervised, graph-based framework for client segmentation. Account behavior is modeled through time series derived from financial data, from which conditional dependencies are inferred using the [*Sparse QUadratic approximation for Inverse Covariance* (SQUIC)](https://epubs.siam.org/doi/10.1137/17M1147615) and [SQUIC-Fit](https://ieeexplore.ieee.org/document/10091452) algorithms. These dependencies are represented as graphs and multiple clustering methods are applied to uncover communities of behaviorally similar clients. The evaluation shows that the proposed framework can generate client segments in settings where only aggregate balance data are available, simulating scenarios in which detailed transaction records cannot be accessed. The approach further demonstrates scalability across datasets of increasing size, indicating potential for application in realistic financial contexts.
@@ -102,9 +102,6 @@ Client segmentation is a fundamental task in financial services, enabling instit
    - `nCluster`: Number of clusters detected
    - `nIsolated`: Number of isolated nodes
 
-    In addition, a plot is generated to show how these metrics vary across different regularization parameters.
-   
-
     For `experiment2_paysim` output will look like:
 
    ```
@@ -119,5 +116,10 @@ Client segmentation is a fundamental task in financial services, enabling instit
    - `nCluster`: Number of clusters (should be 2)
 
     A plot is also generated to illustrate how the metrics evolve with different regularization parameters.
+   <p align="center">
+    <img src="https://github.com/user-attachments/assets/1f025b10-d224-4437-a388-96e3f1cd9b59" alt="plot" width="250" height="250"/>
+    <img src="https://github.com/user-attachments/assets/f053c060-66b2-47d8-ae23-20fa4a6ed7af" alt="ARI_F1_squic-fit" width="250" height="250"/>
+  </p>
+
     
-    When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.    
+  When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.    
