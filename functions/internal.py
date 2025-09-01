@@ -15,12 +15,11 @@ import networkx as nx
 from cosmograph import cosmo
 
 
-def parse_input(user_input):
+def parse_input(user_input, valid_names={"AMLSIM", "PAYSIM"}):
     """Parse and validate the dataset input, which can be 'NAME_DIMENSION'."""
     user_input = user_input.strip().upper()
     parts = user_input.split("_")
 
-    valid_names_with_dimensions = {"AMLSIM", "PAYSIM"}
     valid_dimensions = {"100", "1K", "10K", "100K"}
 
     # if len(parts) == 1:
@@ -32,16 +31,15 @@ def parse_input(user_input):
 
     if len(parts) == 2:
         name, dimension = parts
-        if name not in valid_names_with_dimensions:
+        if name not in valid_names:
             raise ValueError(f"Invalid dataset name '{name}'. Valid options for dimensioned datasets are: "
-                             f"{', '.join(valid_names_with_dimensions)}")
+                             f"{', '.join(valid_names)}")
         if dimension not in valid_dimensions:
             raise ValueError(f"Invalid dimension '{dimension}'. Valid options are: {', '.join(valid_dimensions)}")
         return name, dimension
 
     else:
-        # raise ValueError("Input must be in the format NAME_DIMENSION (e.g., PAYSIM_10K) or just NAME (e.g., LIBRA)")
-        raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., AMLSIM_10K)")
+        raise ValueError(f"Input must be in the format NAME_DIMENSION (e.g., PAYSIM_10K)")
 
 
 def load_dataset_paysim():
@@ -85,13 +83,13 @@ def load_dataset_amlsim():
     return df, name, dimension, account_prop
 
 
-def load_dataset():
+def load_dataset(valid_names={"AMLSIM", "PAYSIM"}):
     """Prompt user input and load the corresponding dataset."""
     while True:
-        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., AMLSIM_10K): ")
+        user_input = input("Insert dataset name in the following format NAME_DIMENSION (e.g., PAYSIM_10K): ")
 
         try:
-            name, dimension = parse_input(user_input)
+            name, dimension = parse_input(user_input, valid_names)
             break
         except ValueError as e:
             print(f"Error: {e}")
