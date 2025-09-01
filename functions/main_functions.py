@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy import sparse
 import json
-from functions.internal import load_dataset_1A, load_dataset_1B, normalization
+from functions.internal import normalization, load_dataset
 from functions.plots import plot_timeseries, plot_knn
 from functions.clustering_functions import study_CC
 from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_computation
@@ -118,15 +118,11 @@ def load_presaved_data(name):
         exit(1)
 
 
-def normal_run(name):
-    if name == 'PAYSIM':
-        Y, name, dimension, account_prop = load_dataset_1A()
-    else:
-        Y, name, dimension, account_prop = load_dataset_1B()
-
+def normal_run(save_fig=False):
+    Y, name, dimension, account_prop = load_dataset(valid_names={"PAYSIM"})
 
     # visualize timeseries
-    plot_timeseries(Y, name, dimension, print_fig=True)
+    plot_timeseries(Y, name, dimension, save_fig=save_fig)
 
     if name == 'PAYSIM':
         print(Y)
@@ -146,10 +142,10 @@ def normal_run(name):
 
     if name == 'PAYSIM':
         # visualize timeseries with normalized data
-        plot_timeseries(Y_norm, name, dimension, type_df='norm', print_fig=True, account_prop=account_prop)
+        plot_timeseries(Y_norm, name, dimension, save_fig=save_fig, type_df='norm', account_prop=account_prop)
         print(Y_norm)
     else:
-        plot_timeseries(Y_norm, name, type_df='norm')
+        plot_timeseries(Y_norm, name, save_fig=save_fig, type_df='norm')
         show_df(Y_norm)
 
     std_dev = round(np.mean(np.std(Y_norm, axis=1)), 2)
