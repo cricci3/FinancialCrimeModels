@@ -5,6 +5,7 @@ plt.style.use(['science'])
 from functions.plots import plot_ARI_f1
 from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic_fit_matrix, ask_input, ask_yes_no
 
+save_fig = False
 
 if __name__ == '__main__':
     '''
@@ -29,7 +30,7 @@ if __name__ == '__main__':
         Y_norm, knn_matrix, account_prop, dimension = load_presaved_data(name)
         
     else: # Normal run
-        Y_norm, knn_matrix, account_prop, dimension = normal_run(name)
+        Y_norm, knn_matrix, account_prop, dimension = normal_run(save_fig)
         
     results_squic = {}
 
