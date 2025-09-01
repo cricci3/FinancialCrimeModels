@@ -49,8 +49,8 @@ Client segmentation is a fundamental task in financial services, enabling instit
 
     ```
     FinancialCrimeModels
-    ├── client_segmentation_1A.py
-    ├── client_segmentation_1B.py
+    ├── experiment1.py
+    ├── experiment2_paysim.py
     ├── ...
     ├── Datasets
         ├── AMLSim
@@ -68,48 +68,51 @@ Client segmentation is a fundamental task in financial services, enabling instit
     Each subfolder (e.g., `100`, `1K`, etc.) should contain the corresponding `.csv` files from the dataset.
 
 4. **Run the Program**  
-    - To run **spectral clustering on PaySim datasets** (fixed number of clusters `k=2`), execute:
+    You can run client segmentation with multiple clustering methods by executing:
 
-        ```bash
-        python client_segmentation_1A.py
-        ```
+    ```bash
+    python experiment1.py
+    ```
 
-   - To run **multi-method clustering on AMLSim datasets** (dynamic number of clusters), execute:
-
+    To run client segmentation with Spectral Clustering on PaySim (fixed number of clusters), execute:
      ```bash
-     python client_segmentation_1B.py
+     python experiment2_paysim.py
      ```
+
+    A corresponding Jupyter Notebook (```.ipynb```) is provided for each experiment, as graph visualization with the [Cosmograph](https://github.com/cosmograph-org/py_cosmograph) tool is supported only in notebooks and not in ```.py``` files.
 
 5. **Input the Dataset Name**  
     When prompted, input the dataset name using the following format: `Name_Dimension`, for example `AMLSim_100` or `PaySim_100` (the input is not case sensitive).
 
 
 6. **View Results**  
-    For `client_segmentation_1A.py` (PaySim – Spectral Clustering, `k=2`):
+    For `experiment1.py` (AMLSim/PaySim – Multiple Clustering Methods):
    Output will look like:
 
    ```
-   For rho = 0.6 : {'spectral': {'nCluster': 2, 'ARI': -0.03, 'f1': 0.58}}
-   For rho = 0.5 : {'spectral': {'nCluster': 2, 'ARI': 1.0, 'f1': 1.0}}
-   For rho = 0.4 : {'spectral': {'nCluster': 2, 'ARI': 1.0, 'f1': 1.0}}
+   For lambda = 0.01:
+       louvain:  PDensity = 0.3, Q = 0.3,  nCluster = 4, nIsolated = 0
+       leiden:   PDensity = 0.33, Q = 0.27, nCluster = 5, nIsolated = 0
+       dbscan:   PDensity = 0.23, Q = -0.0, nCluster = 1, nIsolated = 0
+       spectral:   PDensity = 0.23, Q = -0.0, nCluster = 1, nIsolated = 0
+   ```
+
+   - `PDensity`: Average density between clusters
+   - `Q`: Modularity score
+   - `nCluster`: Number of clusters detected
+   - `nIsolated`: Number of isolated nodes
+
+    For `experiment2_paysim`:
+   Output will look like:
+
+   ```
+   For lambda = 0.6 : 'nCluster': 2, 'ARI': -0.03, 'f1': 0.58
+   For lambda = 0.5 : 'nCluster': 2, 'ARI': 1.0, 'f1': 1.0
+   For lambda = 0.4 : 'nCluster': 2, 'ARI': 1.0, 'f1': 1.0
    ```
 
    - `ARI`: Adjusted Rand Index
    - `f1`: F1 Score
    - `nCluster`: Number of clusters (should be 2)
-    
-   For `client_segmentation_1B.py` (AMLSim – Multiple Clustering Methods):
-   Output will look like:
 
-   ```
-   For rho = 0.01:
-       louvain:  PDensity = 0.3,  Int Density = 0.75, Q = 0.3,  nCluster = 4, nIsolated = 0
-       leiden:   PDensity = 0.33, Int Density = 0.69, Q = 0.27, nCluster = 5, nIsolated = 0
-       dbscan:   PDensity = 0.23, Int Density = 0.24, Q = -0.0, nCluster = 1, nIsolated = 0
-   ```
-
-   - `PDensity`: Average density between clusters
-   - `Int Density`: Average density within clusters
-   - `Q`: Modularity score
-   - `nCluster`: Number of clusters detected
-   - `nIsolated`: Number of isolated nodes
+    When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.    
