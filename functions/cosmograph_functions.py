@@ -117,62 +117,43 @@ def visualize_graph_paysim(W_matrices, squic_method, dict_partition, account_pro
     return widget_dict
 
 
-def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_prop, color_by='community', color_list=COLOR_LIST, export=None):
+def visualize_graph_experiment1(W_matrices, dataset_name, dict_partition, color_by='community', color_list=COLOR_LIST):
 
     widget_dict = {
-        rho: {
+        LAMBDA: {
             'louvain' : {},
+            'leiden' : {},
             'dbscan' : {},
             'spectral' : {}
-        } for rho in W_matrices[squic_method].keys()
+        } for LAMBDA in W_matrices[dataset_name].keys()
     }
     
-    for clustering_method, _ in dict_partition.items():
-        for rho, X in W_matrices[squic_method].items():
+    for LAMBDA, clustering_method in dict_partition.items():
+        G = nx.from_numpy_array(W_matrices[dataset_name][LAMBDA])
+        # for rho, X in W_matrices[dataset_name].items():
             # Create a graph from matrix X
-            G = nx.from_numpy_array(X)
+            # G = nx.from_numpy_array(X)
 
+        for method, partition in clustering_method.items():
             # community_mapping = node_to_community(partition)
-            partition = dict_partition[clustering_method].get(rho, "Not Found")
+            # partition = dict_partition[clustering_method].get(LAMBDA, "Not Found")
             if partition != None:
                 community_mapping = node_to_community(partition)
 
                 # Sets node attributes from a given value or dictionary of values.
                 nx.set_node_attributes(G, community_mapping, 'community')
 
-                fraud_mapping = {}
-                for node in G.nodes():
-                    if node in account_prop and isinstance(account_prop[node], dict):
-                        if 'fraud' in account_prop[node]:
-                            fraud_mapping[node] = account_prop[node]['fraud']
-                    else:
-                        # Default value if node not found in account_prop
-                        fraud_mapping[node] = False
-                
-                # Set fraud attributes for all nodes
-                nx.set_node_attributes(G, fraud_mapping, 'fraud')
-
                 # Nodes: build dataframe from node attributes
                 nodes_data = []
                 fraudolent = []
 
                 for node, data in G.nodes(data=True):
-                    is_fraud = data.get('fraud', False)
-
-                    # Create conditional label - only show label ID if fraudulent
-                    label = str(node) if is_fraud else ""
-
-                    if is_fraud:
-                        fraudolent.append(str(node))
-
                     nodes_data.append({
                         'id': node,
                         # 'label': str(node),
-                        'label' : label,
                         'community': data.get('community'),
                         'color': data.get('color'),
                         'degree': G.degree[node],
-                        'fraud' : is_fraud,
                     })
                 
                 points = pd.DataFrame(nodes_data)
@@ -195,7 +176,6 @@ def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_pro
                 widget = cosmo(
                     points=points,
                     links=links,
-                    point_id_by='id',
                     link_source_by='source',
                     link_target_by='target',
                     link_width_by='weight', # width of an edge given by weight = value in X between i and j
@@ -203,7 +183,6 @@ def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_pro
                     link_greyout_opacity=0.1,
                     # link_color_by='community',
                     point_color_by=color_by,
-                    point_label_by='id', # [id, class, fraud]
                     point_size_by='degree',
                     point_color_strategy='map',
                     point_color_by_map=color_list,
@@ -211,19 +190,12 @@ def visualize_graph_amlsim(W_matrices, squic_method, dict_partition, account_pro
                     show_labels_for=fraudolent
                 )
 
-                widget_dict[rho][clustering_method] = widget
+                widget_dict[LAMBDA][method] = widget
 
-                if export != None and rho == export:
-                    # Export CSVs
-                    export_base = f'cosmograph_export/AMLSIM_{export}_{clustering_method}'
-                    os.makedirs(os.path.dirname(export_base), exist_ok=True)
-                    links.to_csv(f'{export_base}_edges.csv', index=False)
-                    points.to_csv(f'{export_base}_nodes.csv', index=False)
-                    print(f"Exported for Cosmograph WebApp: {export_base}_edges.csv and _nodes.csv")
             else:
-                print(f"No partition for rho {rho}, {clustering_method}")
-                widget_dict[rho][clustering_method] = "No clustering"
-    
+                print(f"No partition for rho {LAMBDA}, {clustering_method}")
+                widget_dict[LAMBDA][method] = "No clustering"
+
     return widget_dict
 
 
