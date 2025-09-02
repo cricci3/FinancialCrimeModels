@@ -122,4 +122,11 @@ Client segmentation is a fundamental task in financial services, enabling instit
   </p>
 
     
-  When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.    
+  When running the Jupyter Notebooks, an additional visualization of the graph is provided, with communities highlighted in different colors.
+
+  <p align="center">
+    <img src="https://github.com/user-attachments/assets/25802d91-fde4-4d70-bb46-fa91e7e0aae5" alt="dbscan_02" width="250" height="250"/>
+    <img src="https://github.com/user-attachments/assets/a227a23a-206f-413d-900e-b74c9272abf7" alt="louvain_02" width="250" height="250"/>
+    <img src="https://github.com/user-attachments/assets/37d51a8d-3300-49ac-bdbe-5eea48c792b5" alt="cluster_03" width="250" height="250"/>
+  </p>
+
