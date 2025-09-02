@@ -82,7 +82,7 @@ def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_f
     else:
         # Plot each column (account balance) as a line
         for user in df.columns:
-            if name == "PAYSIM" and user[0] == 'B':
+            if name == "PAYSIM" and str(user)[0] == 'B':
                 pass
             else:
                 plt.plot(df.index, df[user], label=f"User {user}", alpha=0.7)
@@ -221,12 +221,12 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=Fal
     # Create figure with 2 rows if times_dict is provided
     if times_dict is not None:
         fig, (ax_top, ax_bottom) = plt.subplots(
-            2, 1, figsize=(8, 10), gridspec_kw={'height_ratios': [3, 1]}, sharex=True
+            2, 1, figsize=(8, 6), gridspec_kw={'height_ratios': [3, 1]}, sharex=True
         )
         ax1 = ax_top
         ax2 = ax1.twinx()
     else:
-        fig, ax1 = plt.subplots(figsize=(8, 8))
+        fig, ax1 = plt.subplots(figsize=(8, 4))
         ax2 = ax1.twinx()
         ax_bottom = None
 
@@ -242,12 +242,12 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=Fal
         x_positions = range(len(rhos))  # equally spaced positions
 
         # ARI — dashed line
-        ax1.plot(x_positions, ARI_values, linestyle='dashed', marker='o',
-                 color='orange', label='ARI')
+        ax1.plot(x_positions, ARI_values, linestyle='dotted', marker='o',
+                 color='orange', label='ARI', linewidth=1.5)
 
         # F1-score — solid line
         ax2.plot(x_positions, F1_values, linestyle='solid', marker='^',
-                 color='green', label='F1')
+                 color='green', label='F1', linewidth=1.5)
 
         # Replace numeric ticks with rho labels
         ax1.set_xticks(x_positions)
@@ -257,7 +257,7 @@ def plot_ARI_f1(metrics_dict, squic_method, dimension, times_dict=None, save=Fal
         if times_dict is not None and ax_bottom is not None:
             times = [times_dict.get(rho, 0) for rho in rhos]
             ax_bottom.bar(x_positions, times, width=0.6, color='steelblue', alpha=0.7)
-            ax_bottom.set_ylabel("Time (s)", fontsize=16)
+            ax_bottom.set_ylabel('SQUIC-Fit Time (s)', fontsize=16)
             ax_bottom.tick_params(axis='y', labelsize=13)
             ax_bottom.tick_params(axis='x', labelsize=13)
             ax_bottom.grid(True, axis='y', alpha=0.2)
@@ -413,16 +413,16 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
 
         if x_idx:
             c = colors.get(method, 'black')
-            ax1.plot(x_idx, q_vals, linestyle='--', marker='o', color=c, label=f'Q {method}')
-            ax2.plot(x_idx, pden_vals, linestyle='-', marker='^', color=c, label=f'Pdensity {method}')
+            ax1.plot(x_idx, q_vals, linestyle='dotted', marker='o', color=c, label=f'Q {method}', linewidth=1.5)
+            ax2.plot(x_idx, pden_vals, linestyle='-', marker='^', color=c, label=f'Pdensity {method}', linewidth=1.5)
 
     # ===== top axes labels & ticks =====
     ax1.set_ylabel('Modularity Q', color='black', fontsize=16)
     ax2.set_ylabel('Partition Density', color='black', fontsize=16)
     ax1.set_xticks(range(len(all_rhos)))
     ax1.set_xticklabels([str(r) for r in all_rhos], fontsize=13)
-    ax1.tick_params(axis='y', labelsize=13)
-    ax2.tick_params(axis='y', labelsize=13)
+    ax1.tick_params(axis='y', labelsize=14)
+    ax2.tick_params(axis='y', labelsize=14)
     ax1.grid(True, axis='y', alpha=0.3)
 
     # unified legend (top plot)
@@ -438,10 +438,10 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
     ax_time.bar(time_x, np.nan_to_num(time_values, nan=0.0),
                 width=0.6, alpha=0.6, linewidth=0.5)
 
-    ax_time.set_ylabel('Time (s)', fontsize=14)
+    ax_time.set_ylabel('SQUIC-Fit Time (s)', fontsize=14)
     ax_time.set_xlabel(r'Reg. parameter $\lambda$', fontsize=16)
     ax_time.tick_params(axis='x', labelsize=13)
-    ax_time.tick_params(axis='y', labelsize=12)
+    ax_time.tick_params(axis='y', labelsize=13)
     ax_time.grid(True, axis='y', alpha=0.2)
 
     # hide duplicated x tick labels on top axis
