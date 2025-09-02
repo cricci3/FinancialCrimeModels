@@ -94,7 +94,7 @@ def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_f
     plt.grid(axis='y', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.grid(axis='x', color='#cccccc', linewidth=0.5, alpha=0.3, linestyle='--')
     plt.tight_layout()
-    if save_fig is not None:
+    if save_fig is not None and save_fig != False:
         os.makedirs(f'{save_fig}/{dimension}', exist_ok=True)
         if type_df is None:
             plt.savefig(f'{save_fig}/{dimension}/{title}', dpi=300)
