@@ -30,7 +30,7 @@ if __name__ == '__main__':
         Y_norm, knn_matrix, account_prop, dimension = load_presaved_data(name)
         
     else: # Normal run
-        Y_norm, knn_matrix, account_prop, dimension = normal_run(save_fig)
+        Y_norm, knn_matrix, account_prop, dimension = normal_run(save_fig, labels=True)
         
     results_squic = {}
 

@@ -118,11 +118,11 @@ def load_presaved_data(name):
         exit(1)
 
 
-def normal_run(save_fig=False):
+def normal_run(save_fig=False, labels=False):
     Y, name, dimension, account_prop = load_dataset(valid_names={"PAYSIM"})
 
     # visualize timeseries
-    plot_timeseries(Y, name, dimension, save_fig=save_fig)
+    plot_timeseries(Y, name, dimension, labels=labels, save_fig=save_fig)
 
     if name == 'PAYSIM':
         print(Y)
@@ -142,7 +142,7 @@ def normal_run(save_fig=False):
 
     if name == 'PAYSIM':
         # visualize timeseries with normalized data
-        plot_timeseries(Y_norm, name, dimension, save_fig=save_fig, type_df='norm', account_prop=account_prop)
+        plot_timeseries(Y_norm, name, dimension, save_fig=save_fig, type_df='norm', labels=labels, account_prop=account_prop)
         print(Y_norm)
     else:
         plot_timeseries(Y_norm, name, save_fig=save_fig, type_df='norm')
