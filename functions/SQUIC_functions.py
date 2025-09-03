@@ -130,7 +130,7 @@ def squic_fit_sparse(Y, lambda_val, eta):
     return X_final, end_time
 
 
-def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=0):
+def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=1):
     '''
     Sparse implementation of SQUIC Fit with bias
     [...] We define Λij = Mij if Mij!=0
@@ -145,7 +145,7 @@ def squic_fit_matrix_sparse(Y, l, bias_matrix, eta=0):
     start_time = time.time()
 
     # Construct Lambda matrix (bias)
-    if eta == 0:
+    if eta == 1:
         L_matrix = csr_matrix(bias_matrix)
     else: # Favor edges from the KNN graph
         # Λij = η if KNN says i∼j
@@ -320,7 +320,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
 
     for rho in lambdas:
         #W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=rho/10)
-        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix, eta=0)
+        W_matrices[rho], end_time = squic_fit_matrix_sparse(Y=Y_norm, l=rho, bias_matrix=adjaceny_matrix)
         end_time = round(end_time, 2)
         print(f"required time: {end_time}")
 
