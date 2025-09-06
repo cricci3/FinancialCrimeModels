@@ -412,17 +412,25 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
                 pden_vals.append(pdens)
 
         if x_idx:
+            method_name = {
+                'louvain' : 'Louvain',
+                'leiden' : 'Leiden',
+                'dbscan' : 'DBSCAN',
+                'spectral' : 'Spectral C.'
+            }
+
+            method_name = method_name.get(method)
             c = colors.get(method, 'black')
-            ax1.plot(x_idx, q_vals, linestyle='dotted', marker='o', color=c, label=f'Q {method}', linewidth=1.5)
-            ax2.plot(x_idx, pden_vals, linestyle='-', marker='^', color=c, label=f'Pdensity {method}', linewidth=1.5)
+            ax1.plot(x_idx, q_vals, linestyle='dotted', marker='o', color=c, label=f'Q {method_name}', linewidth=1.5)
+            ax2.plot(x_idx, pden_vals, linestyle='-', marker='^', color=c, label=f'PD {method_name}', linewidth=1.5)
 
     # ===== top axes labels & ticks =====
     ax1.set_ylabel('Modularity Q', color='black', fontsize=16)
     ax2.set_ylabel('Partition Density', color='black', fontsize=16)
     ax1.set_xticks(range(len(all_rhos)))
-    ax1.set_xticklabels([str(r) for r in all_rhos], fontsize=13)
-    ax1.tick_params(axis='y', labelsize=14)
-    ax2.tick_params(axis='y', labelsize=14)
+    ax1.set_xticklabels([str(r) for r in all_rhos], fontsize=16)
+    ax1.tick_params(axis='y', labelsize=16)
+    ax2.tick_params(axis='y', labelsize=16)
     ax1.grid(True, axis='y', alpha=0.3)
 
     # unified legend (top plot)
@@ -430,7 +438,7 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2,
             loc='upper center', bbox_to_anchor=(0.5, 1.15),
-            ncol=4, fontsize=11, frameon=True)
+            ncol=4, fontsize=12, frameon=True)
 
     # ===== bottom time panel (seconds) =====
     time_values = np.array(time_values, dtype=float)
@@ -438,10 +446,10 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
     ax_time.bar(time_x, np.nan_to_num(time_values, nan=0.0),
                 width=0.6, alpha=0.6, linewidth=0.5)
 
-    ax_time.set_ylabel('SQUIC-Fit Time (s)', fontsize=14)
+    ax_time.set_ylabel('SQUIC-Fit Time (s)', fontsize=16)
     ax_time.set_xlabel(r'Reg. parameter $\lambda$', fontsize=16)
-    ax_time.tick_params(axis='x', labelsize=13)
-    ax_time.tick_params(axis='y', labelsize=13)
+    ax_time.tick_params(axis='x', labelsize=16)
+    ax_time.tick_params(axis='y', labelsize=16)
     ax_time.grid(True, axis='y', alpha=0.2)
 
     # hide duplicated x tick labels on top axis
@@ -451,7 +459,8 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
     if save:
         path = f'decomposition/glasso_images/{name.lower()}/{dim}'
         os.makedirs(path, exist_ok=True)
-        plt.savefig(f'{path}/plot', dpi=300)
+        plt.savefig(f'{path}/plot_big', dpi=300)
+        print(f"Plot saved in {path}/plot")
     plt.show()
 
 
