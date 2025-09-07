@@ -193,4 +193,4 @@ if __name__ == '__main__':
 
 
     if PLOT:
-        plot_PDens_Q_Times(int_metrics, dim, name)
+        plot_PDens_Q_Times(int_metrics, dim, name, save=SAVE_FIG)
