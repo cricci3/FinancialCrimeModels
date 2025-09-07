@@ -4,10 +4,11 @@ networkx
 numpy
 pandas
 scikit-learn
-tabulate
-seaborn
 tqdm
 squic
 igraph
 leidenalg
 scienceplots
+statsmodels
+seaborn
+ipykernel
