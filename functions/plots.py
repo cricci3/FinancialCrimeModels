@@ -114,7 +114,8 @@ def plot_knn(knn_matrix, name, dimension, save=False):
     if save:
         dir = f'images/{name}/{dimension}'
         os.makedirs(dir, exist_ok=True)
-        plt.savefig(f'{dir}/knn_matrix')
+        plt.savefig(f'{dir}/knn_matrix', dpi=300)
+        print(f"KNN matrix img saved in {dir} as 'knn_matrix'")
     plt.show()
     return
 
@@ -459,7 +460,7 @@ def plot_PDens_Q_Times(int_metrics, dim, name, save=False):
     if save:
         path = f'decomposition/glasso_images/{name.lower()}/{dim}'
         os.makedirs(path, exist_ok=True)
-        plt.savefig(f'{path}/plot_big', dpi=300)
+        plt.savefig(f'{path}/plot', dpi=300)
         print(f"Plot saved in {path}/plot")
     plt.show()
 

@@ -209,7 +209,7 @@ def run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension):
         save = False
     
     if printMatrix:
-        plot_knn(knn_matrix, name, dimension, save)
+        plot_knn(knn_matrix, name, dimension, save=save)
 
     study = False
     if name == 'PAYSIM':
