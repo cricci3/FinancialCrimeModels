@@ -19,12 +19,12 @@ if __name__ == '__main__':
     Y, name, dim, _ = load_dataset()
 
     PLOT = True
-    SAVE_FIG = False
+    SAVE_FIG = True
     if SAVE_FIG:
         SAVE_FIG_DIR = f'decomposition/glasso_images/{name.lower()}'
     
     if PLOT:
-        plot_timeseries(Y, name, dimension=dim)
+        plot_timeseries(Y, name, dimension=dim, save_fig=SAVE_FIG_DIR)
 
     all_residuals = { 
                 account: seasonal_decompose(Y[account], model='additive', period=7).resid
@@ -43,7 +43,7 @@ if __name__ == '__main__':
                             index=df_residuals.index, 
                             columns=df_residuals.columns)
     if PLOT:
-        plot_timeseries(df_prepared, "AMLSIM", dimension=dim)
+        plot_timeseries(df_prepared, "AMLSIM", dimension=dim, save_fig=SAVE_FIG_DIR)
 
     print(df_prepared)
 
