@@ -43,7 +43,6 @@ if __name__ == '__main__':
         
     else: # Normal run
         Y_norm, knn_matrix, account_prop, dimension = normal_run(
-            name="PAYSIM",
             dimension=dimension,
             plot_fig=plot_fig,
             save_fig=save_fig,

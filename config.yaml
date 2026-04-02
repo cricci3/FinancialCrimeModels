@@ -1,5 +1,5 @@
 dataset_name: PAYSIM        # Dataset name (PAYSIM, AMLSIM)
-dataset_dimension: 10K      # Dataset dimension (100, 1K, 10K, 100K)
+dataset_dimension: '10K'      # Dataset dimension (100, 1K, 10K, 100K)
 
 load_cache: false           # Cache presaved data (if true, load from cache instead of processing raw data)
 cache_data: true            # Cache processed data for future use (if true, save processed data to cache)

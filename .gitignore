@@ -1,21 +1,16 @@
 *.csv
-dgraph/DGraphFin
-dgraph/NearbyNet
 *.DS_STORE
 datasets/
+Datasets/
 images/
 graphs/
 lambda_values.json
 *.R
 *.m
 paysim_data_saved/
+PAYSIM_data_saved/
 amlsim_data_saved/
-Anomaly Detection/Elliot19_reproduce
-
-playground/squic_folder/*.npz
-playground/squic_folder/*.json
-
-glasso_images/
+AMLSIM_data_saved/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

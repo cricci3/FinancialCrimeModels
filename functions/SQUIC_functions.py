@@ -34,7 +34,7 @@ Utility functions:
 
 def read_lambdas(name, dimension, type):
     with open('lambda_values.json') as f:
-            lambda_data = json.load(f)
+        lambda_data = json.load(f)
         
     lambdas = lambda_data[name][dimension][type]
     
@@ -307,7 +307,7 @@ def squic_fit_computation(Y_norm, name, dimension, printMatrix=False, save=False
     return W_matrices, times_dict
 
 
-def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study=False, printMatrix=False, save=False):
+def squic_fit_matrix_computation(Y_norm, dimension, adjaceny_matrix, study=False, printMatrix=False, save=False):
     
     lambdas = read_lambdas("PAYSIM-extension", dimension, "bias")
 
@@ -336,7 +336,7 @@ def squic_fit_matrix_computation(Y_norm, name, dimension, adjaceny_matrix, study
         print(f"nnz = {nnz} per rows = {nnz_r}")
 
         if printMatrix or save:
-            print_covariance_matrix(W_matrices[rho], printMatrix, save, path=f'images/{name}/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","")}')
+            print_covariance_matrix(W_matrices[rho], printMatrix, save, path=f'images/PAYSIM/{dimension}/', file_name=f'{squic_method}_{str(rho).replace(".","")}')
 
         if check_symmetric_sparse(W_matrices[rho]):
             print(f" Matrix is symmetric per rho {rho}")

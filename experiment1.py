@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     Y, name, dim, _ = load_dataset(dataset, dimension)
 
-    load_cache = config['load_data']
+    load_cache = config['load_cache']
     cache_data = config['cache_data']
     save_fig = config['save_fig']
     plot_fig = config['plot_fig']
