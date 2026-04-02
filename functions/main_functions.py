@@ -9,28 +9,6 @@ from functions.SQUIC_functions import squic_fit_matrix_computation, squic_fit_co
 from sklearn.neighbors import NearestNeighbors
 import os
 
-def ask_yes_no(prompt, default=None):
-    """
-    Ask the user a yes/no question with optional default.
-    """
-    while True:
-        answer = input(f"{prompt} (Y/N) ").strip().upper()
-        if not answer and default:
-            return default
-        if answer in ['Y', 'N']:
-            return answer
-        print("Please enter 'Y' or 'N'.")
-
-
-def ask_input(prompt, default=None):
-    """
-    Ask the user for input with optional default.
-    """
-    answer = input(f"{prompt} ").strip()
-    if not answer and default is not None:
-        return default
-    return answer
-
 
 def show_df(Y):
     n_users, n_days = Y.shape
@@ -45,8 +23,7 @@ def show_df(Y):
     print(df)
 
 
-def load_presaved_data(name):
-    dimension = ask_input("Which dimension (100/1K/10K/100K/1M)?").upper()
+def load_presaved_data(dimension, name="PAYSIM"):
     path = f'{name}_data_saved'
 
     try:
@@ -108,8 +85,6 @@ def load_presaved_data(name):
 
         account_prop = {int(k): v for k, v in account_prop.items()}
         
-        name = 'PAYSIM'
-
         return Y_norm, knn_matrix, account_prop, dimension
 
     except Exception as e:
@@ -118,11 +93,12 @@ def load_presaved_data(name):
         exit(1)
 
 
-def normal_run(save_fig=False, labels=False):
+def normal_run(dimension, plot_fig, save_fig=False, cache_data=False, labels=False):
     Y, name, dimension, account_prop = load_dataset(valid_names={"PAYSIM"})
 
     # visualize timeseries
-    plot_timeseries(Y, name, dimension, labels=labels, save_fig=save_fig)
+    if plot_fig:
+        plot_timeseries(Y, name, dimension, labels=labels, save_fig=save_fig)
 
     if name == 'PAYSIM':
         print(Y)
@@ -178,7 +154,7 @@ def normal_run(save_fig=False, labels=False):
     print("nnz KNN:", knn_matrix.nnz)
 
     # Ask user if want to save the data for next runs
-    if ask_yes_no("Do you want to cache this data?") == 'Y':
+    if cache_data:
         path = f'{name}_data_saved'
 
         # if path does not exists, create it
@@ -197,45 +173,21 @@ def normal_run(save_fig=False, labels=False):
     return Y_norm, knn_matrix, account_prop, dimension
 
 
-def run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension):
-    if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
-        printMatrix = True
-    else:
-        printMatrix = False
+def run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, dimension, plot_fig=False, save_fig=False, study_cc=False):
+    if plot_fig:
+        plot_knn(knn_matrix, dimension, save=save_fig)
 
-    if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
-        save = True
-    else:
-        save = False
-    
-    if printMatrix:
-        plot_knn(knn_matrix, name, dimension, save=save)
-
-    study = False
-    if name == 'PAYSIM':
-        if ask_yes_no("Do you want to study the CC of KNN matrix and SQUIC-Fit results?") == 'Y':
-            # A plot showing the top 5 components of KNN matrix and SQUIC-Fit results will be show
-            study = True
-            study_CC(knn_matrix)
+    if study_cc:
+        # A plot showing the top 5 components of KNN matrix and SQUIC-Fit results will be show
+        study_CC(knn_matrix)
     
     squic_method = 'squic-fit-matrix'
-    results_squic[squic_method], times_dict = squic_fit_matrix_computation(Y_norm, name, dimension, knn_matrix, study, printMatrix, save)
+    results_squic[squic_method], times_dict = squic_fit_matrix_computation(Y_norm, dimension, knn_matrix, study_cc, plot_fig, save_fig)
 
-    return results_squic, squic_method, save, times_dict
+    return results_squic, squic_method, times_dict
 
 
-def run_squic_fit(Y_norm, results_squic, name, dimension):
-    if ask_yes_no("Do you want to visualize the results of SQUIC-Fit?") == 'Y':
-        printMatrix = True
-    else:
-        printMatrix = False
-
-    if ask_yes_no("Do you want to save the results of SQUIC-Fit?") == 'Y':
-        save = True
-    else:
-        save = False
-
+def run_squic_fit(Y_norm, results_squic, name, dimension, plot_fig=False, save_fig=False):
     squic_method = 'squic-fit'
-    results_squic[squic_method], times_dict = squic_fit_computation(Y_norm, name, dimension, printMatrix, save)
-
-    return results_squic, squic_method, save, times_dict
+    results_squic[squic_method], times_dict = squic_fit_computation(Y_norm, name, dimension, plot_fig, save_fig)
+    return results_squic, squic_method, times_dict

@@ -4,8 +4,8 @@ import scienceplots
 plt.style.use(['science'])
 from functions.plots import plot_ARI_f1
 from functions.main_functions import load_presaved_data, normal_run, run_squic_fit, run_squic_fit_matrix, ask_input, ask_yes_no
+import yaml
 
-save_fig = False
 
 if __name__ == '__main__':
     '''
@@ -23,23 +23,40 @@ if __name__ == '__main__':
     - On the first run for a given dimension, you must generate and save this data by answering 
       "Y" when prompted to cache it.
     '''
-    user_input = ask_yes_no("\nDo you want to load data?")
-    name = 'PAYSIM'
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
 
-    if user_input == 'Y':
-        Y_norm, knn_matrix, account_prop, dimension = load_presaved_data(name)
+    cache = config['load_cache']
+    dimension = config['dataset_dimension']
+    save_fig = config['save_fig']
+    plot_fig = config['plot_fig']
+    cache_data = config['cache_data']
+    labels = config['labels']
+
+    bias_squic = config['squic_fit_options']['bias']
+    plot_squic = config['squic_fit_options']['visualize_results']
+    save_squic = config['squic_fit_options']['save_results']
+    study_cc = config['squic_fit_options']['study_cc']
+
+    if cache:
+        Y_norm, knn_matrix, account_prop, dimension = load_presaved_data(dimension)
         
     else: # Normal run
-        Y_norm, knn_matrix, account_prop, dimension = normal_run(save_fig, labels=True)
+        Y_norm, knn_matrix, account_prop, dimension = normal_run(
+            name="PAYSIM",
+            dimension=dimension,
+            plot_fig=plot_fig,
+            save_fig=save_fig,
+            cache_data=cache_data,
+            labels=True)
         
     results_squic = {}
 
     # Run SQUIC_fit
-    if ask_yes_no("SQUIC-Fit with bias or no?") == 'Y':
-        results_squic, squic_method, save, times_dict = run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, name, dimension)
-        
+    if bias_squic:
+        results_squic, squic_method, times_dict = run_squic_fit_matrix(Y_norm, knn_matrix, results_squic, dimension, plot_fig=plot_squic, save_fig=save_squic, study_cc=study_cc)
     else:
-        results_squic, squic_method, save, times_dict = run_squic_fit(Y_norm, results_squic, name, dimension)
+        results_squic, squic_method, times_dict = run_squic_fit(Y_norm, results_squic, name="PAYSIM", dimension=dimension)
         
     # Results
     dict_cluster = clustering_2_communities(results_squic, squic_method, dimension)
@@ -50,5 +67,5 @@ if __name__ == '__main__':
         for rho, results in data.items():
             print(f"for rho = {rho} : {results}")
 
-    plot_ARI_f1(metrics, squic_method, dimension, times_dict, save)
+    plot_ARI_f1(metrics, squic_method, dimension, times_dict, save_fig)
     

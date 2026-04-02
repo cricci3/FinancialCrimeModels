@@ -13,17 +13,27 @@ from functions.internal import load_dataset
 from functions.plots import plot_timeseries, plot_PDens_Q_Times, plot_theta
 import os
 from functions.clustering_functions import labels_to_partition, compute_partition_density
+import yaml
 
 
 if __name__ == '__main__':
-    Y, name, dim, _ = load_dataset()
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
 
-    PLOT = True
-    SAVE_FIG = True
-    if SAVE_FIG:
-        SAVE_FIG_DIR = f'decomposition/glasso_images/{name.lower()}'
+    dataset = config['dataset_name']
+    dimension = config['dataset_dimension']
+
+    Y, name, dim, _ = load_dataset(dataset, dimension)
+
+    load_cache = config['load_data']
+    cache_data = config['cache_data']
+    save_fig = config['save_fig']
+    plot_fig = config['plot_fig']
+
+    if save_fig:
+        SAVE_FIG_DIR = f'figures/{name.lower()}'
     
-    if PLOT:
+    if plot_fig:
         plot_timeseries(Y, name, dimension=dim, save_fig=SAVE_FIG_DIR)
 
     all_residuals = { 
@@ -42,7 +52,7 @@ if __name__ == '__main__':
     df_prepared = pd.DataFrame(prepared_data, 
                             index=df_residuals.index, 
                             columns=df_residuals.columns)
-    if PLOT:
+    if plot_fig:
         plot_timeseries(df_prepared, "AMLSIM", dimension=dim, save_fig=SAVE_FIG_DIR)
 
     print(df_prepared)
@@ -78,8 +88,8 @@ if __name__ == '__main__':
         else:
             print(f" Matrix is not symmetric per lambda={LAMBDA}")
 
-        if PLOT:
-            plot_theta(theta, name, dim, LAMBDA, SAVE_FIG)
+        if plot_fig:
+            plot_theta(theta, name, dim, LAMBDA, save_fig)
 
         dict_cluster = {
             "louvain" : {},
@@ -192,5 +202,5 @@ if __name__ == '__main__':
                 print(f"    {method} : #Cluster = {metrics['nCluster']}, p_density = {metrics['p_density']}, Q = {metrics['modularity']}")
 
 
-    if PLOT:
-        plot_PDens_Q_Times(int_metrics, dim, name, save=SAVE_FIG)
+    if plot_fig:
+        plot_PDens_Q_Times(int_metrics, dim, name, save_fig)

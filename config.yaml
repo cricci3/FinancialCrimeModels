@@ -1,0 +1,14 @@
+dataset_name: PAYSIM        # Dataset name (PAYSIM, AMLSIM)
+dataset_dimension: 10K      # Dataset dimension (100, 1K, 10K, 100K)
+
+load_cache: false           # Cache presaved data (if true, load from cache instead of processing raw data)
+cache_data: true            # Cache processed data for future use (if true, save processed data to cache)
+save_fig: false             # Save generated figures to disk (if true, save figures)
+plot_fig: false             # Display figures interactively (if true, show figures on screen)
+labels: true                # Visualize labels in timeseries plots (if true, include labels in visualizations)
+
+squic_fit_options:
+  bias: true                # Include bias in SQUIC-FIT (if true, include bias term in fitting)
+  visualize_results: true   # Visualize results (if true, generate visualizations of the fitting process)
+  save_results: false       # Save figures to disk (if true, save figures)
+  study_cc: false           # Study the connected components in SQUIC_FIT (if true, analyze connected components)

@@ -104,7 +104,7 @@ def plot_timeseries(df, name, dimension=None, labels=False, type_df=None, save_f
     return
 
 
-def plot_knn(knn_matrix, name, dimension, save=False):
+def plot_knn(knn_matrix, dimension, name="PAYSIM", save=False):
     plt.figure(figsize=(7, 7))
     plt.spy(knn_matrix, markersize=5)
     plt.xlabel("Users", fontsize=18)
@@ -129,7 +129,7 @@ def plot_theta(theta, name, dim, LAMBDA, save=False):
     plt.tick_params(axis='x', labelsize=18)
     plt.tick_params(axis='y', labelsize=18) 
     if save:
-        path = f'decomposition/glasso_images/{name.lower()}/{dim}'
+        path = f'figures/{name.lower()}/{dim}'
         os.makedirs(path, exist_ok=True)
         lambda_str = str(LAMBDA).replace(".", "")
         plt.savefig(f"{path}/squic_fit_{lambda_str}", dpi=300)
